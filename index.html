@@ -9,16 +9,26 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × 高精細アニメ情景イラスト × 音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × 極上アニメ画質 (Hugging Face) × 音声</p>
 
-    <!-- APIキー入力 -->
-    <div class="mb-4">
-      <div class="flex justify-between items-center mb-1">
-        <label class="text-xs font-semibold text-slate-600">Gemini API Key:</label>
-        <span id="keySavedStatus" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済み</span>
+    <!-- APIキー設定エリア -->
+    <div class="space-y-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (文章生成):</label>
+          <span id="geminiSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
+        </div>
+        <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
       </div>
-      <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <p class="text-[10px] text-slate-400 mt-1">※キーはお使いの端末にのみ安全に保存されます</p>
+
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label class="text-[11px] font-semibold text-slate-700">2. Hugging Face Token (極上画像生成):</label>
+          <span id="hfSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
+        </div>
+        <input id="hfToken" type="password" placeholder="hf_..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+      <p class="text-[9px] text-slate-400">※各キーは端末内(LocalStorage)にのみ安全に保存されます</p>
     </div>
 
     <!-- 設定 -->
@@ -54,9 +64,9 @@
 
     <!-- テーマ入力 & 生成ボタン -->
     <div class="mb-4">
-      <input id="topic" type="text" placeholder="テーマ（例: カフェでコーヒーを注文、駅のホームで待つ）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
       <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm">
-        <span>✨</span> ストーリー＆美麗イラストを生成
+        <span>✨</span> ストーリー＆極上アニメイラストを生成
       </button>
     </div>
 
@@ -65,7 +75,7 @@
 
     <!-- 生成されたイラスト画像 -->
     <div id="imageContainer" class="hidden mb-4">
-      <label class="block text-xs font-semibold text-slate-600 mb-1">情景イメージ (Visual Context):</label>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">情景イラスト (Visual Context):</label>
       <div class="relative w-full aspect-[4/3] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
         <img id="generatedImage" src="" alt="情景イラスト" class="w-full h-full object-cover">
       </div>
@@ -105,10 +115,15 @@
 
   <script>
     window.addEventListener('DOMContentLoaded', () => {
-      const savedKey = localStorage.getItem('ci_gemini_key');
-      if (savedKey) {
-        document.getElementById('apiKey').value = savedKey;
-        document.getElementById('keySavedStatus').classList.remove('hidden');
+      const savedGemini = localStorage.getItem('ci_gemini_key');
+      if (savedGemini) {
+        document.getElementById('apiKey').value = savedGemini;
+        document.getElementById('geminiSaved').classList.remove('hidden');
+      }
+      const savedHf = localStorage.getItem('ci_hf_token');
+      if (savedHf) {
+        document.getElementById('hfToken').value = savedHf;
+        document.getElementById('hfSaved').classList.remove('hidden');
       }
     });
 
@@ -121,16 +136,21 @@
       errorBox.innerText = '';
       imgContainer.classList.add('hidden');
 
-      let rawKey = document.getElementById('apiKey').value;
-      const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
+      const apiKey = document.getElementById('apiKey').value.trim().replace(/^["']|["']$/g, '');
+      const hfToken = document.getElementById('hfToken').value.trim().replace(/^["']|["']$/g, '');
 
       if (!apiKey) {
-        showError('APIキーが入力されていません。「AIzaSy...」で始まるキーを入力してください。');
+        showError('Gemini APIキーを入力してください。');
         return;
       }
 
       localStorage.setItem('ci_gemini_key', apiKey);
-      document.getElementById('keySavedStatus').classList.remove('hidden');
+      document.getElementById('geminiSaved').classList.remove('hidden');
+
+      if (hfToken) {
+        localStorage.setItem('ci_hf_token', hfToken);
+        document.getElementById('hfSaved').classList.remove('hidden');
+      }
 
       const langSelect = document.getElementById('lang');
       const targetLang = langSelect.options[langSelect.selectedIndex].text;
@@ -151,32 +171,23 @@
 
 【条件】
 1. 言語: ${targetLang}
-2. レベル: ${level}（極めて平易で文脈から意味が推測できる単語・文構造）
+2. レベル: ${level}
 3. テーマ: ${topic}
 4. ルール:
    - ${lengthPrompt}
-   - 日本語の訳や解説は書かないこと
-   - 【絶対禁止】ストーリー本文中に年齢に関する記述（例: "I am 25 years old", "twenty-five years old" など）や自己紹介の定型文を一切入れないでください。テーマに沿った具体的な行動や周囲の情景描写のみを書いてください。
+   - 日本語の訳や解説は不要
+   - 【絶対禁止】年齢（例: 25 years old等）や定型自己紹介は一切書かないこと。
    - 以下の形式（JSON）のみを出力してください:
 {
-  "story": "ターゲット言語で書いた自然なストーリー本文（年齢の記述は完全に排除）",
-  "action": "Describe the 25-year-old adult handsome Japanese male protagonist specifically doing something in 1 clear English sentence",
-  "location": "Detailed modern aesthetic Japanese setting in 4-6 English words",
-  "mood": "Lighting and atmosphere (e.g., warm golden morning sunlight, pleasant cozy afternoon) in 3-5 English words"
+  "story": "ターゲット言語で書いた自然なストーリー本文",
+  "danbooru_tags": "masterpiece, best quality, 1boy, 25yo adult handsome Japanese male, neat black short hair, stylish casual clothes, performing (specific physical action here), in (specific location environment here), daytime, clean background, perfect anime aesthetic"
 }`;
 
-      const fallbackModels = [
-        'gemini-3.6-flash',
-        'gemini-3.7-flash',
-        'gemini-2.0-flash-lite'
-      ];
-
+      const fallbackModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-2.0-flash-lite'];
       let isSuccess = false;
       let lastErrorMessage = '';
       let generatedStory = '';
-      let actionDesc = topic;
-      let locationDesc = 'everyday location';
-      let moodDesc = 'bright daytime light';
+      let danbooruTags = '';
 
       for (const model of fallbackModels) {
         try {
@@ -191,15 +202,10 @@
           });
 
           const data = await res.json();
-
           if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            const rawJson = data.candidates[0].content.parts[0].text;
-            const parsed = JSON.parse(rawJson);
+            const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
             generatedStory = parsed.story;
-            actionDesc = parsed.action || topic;
-            locationDesc = parsed.location || 'modern Tokyo street';
-            moodDesc = parsed.mood || 'bright clear daylight';
-
+            danbooruTags = parsed.danbooru_tags || `masterpiece, 1boy, 25yo adult man, ${topic}`;
             document.getElementById('resultText').value = generatedStory.trim();
             isSuccess = true;
             break;
@@ -214,26 +220,56 @@
       if (!isSuccess) {
         showError(`【接続エラー】\n${lastErrorMessage}`);
         btn.disabled = false;
-        btn.innerHTML = '<span>✨</span> ストーリー＆美麗イラストを生成';
+        btn.innerHTML = '<span>✨</span> ストーリー＆極上アニメイラストを生成';
         return;
       }
 
-      // 高品質アニメ画像生成 (FLUXエンジン)
-      btn.innerHTML = '<span class="animate-spin">🎨</span> 美麗イラスト作成中...';
+      // 極上アニメイラストの生成
+      btn.innerHTML = '<span class="animate-spin">🎨</span> 極上アニメ作画中...';
 
-      const imagePrompt = `masterpiece, best quality, ultra-detailed anime visual, modern Japanese anime movie aesthetic, Makoto Shinkai and Kyoto Animation inspired style, highly refined clean lineart.
-Protagonist: A handsome, clean-cut 25-year-old young adult Japanese man (adult male, NOT a child) with neat stylish dark hair, clear expressive eyes, wearing modern clean casual attire, naturally performing ${actionDesc}.
-Setting: Highly detailed, aesthetically pleasing modern Japanese background of ${locationDesc}. Beautiful cinematic lighting, ${moodDesc}, gorgeous color palette, crisp depth of field.
-Negative Constraints: low quality, blurry, ugly, bad anatomy, deformed, child, kid, chibi, sweat drops, manga symbols, sparkles, text, watermark, speech bubbles.`;
+      const negativePrompt = 'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, child, kid, chibi, sweat drops, manga symbols, sparkles';
 
-      const seed = Math.floor(Math.random() * 100000);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
-      
-      imgElem.src = imageUrl;
-      imgContainer.classList.remove('hidden');
+      try {
+        if (hfToken) {
+          // Hugging Face Anime特化モデル (Animagine XL)
+          const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${hfToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              inputs: danbooruTags,
+              parameters: {
+                negative_prompt: negativePrompt,
+                width: 768,
+                height: 576
+              }
+            })
+          });
 
-      btn.disabled = false;
-      btn.innerHTML = '<span>✨</span> ストーリー＆美麗イラストを生成';
+          if (hfRes.ok) {
+            const blob = await hfRes.blob();
+            imgElem.src = URL.createObjectURL(blob);
+            imgContainer.classList.remove('hidden');
+          } else {
+            throw new Error(`HF応答コード: ${hfRes.status}`);
+          }
+        } else {
+          // HFトークン未入力時のフォールバック
+          const seed = Math.floor(Math.random() * 100000);
+          imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(danbooruTags)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
+          imgContainer.classList.remove('hidden');
+        }
+      } catch (imgErr) {
+        // エラー時は自動でバックアップ描画へ切り替え
+        const seed = Math.floor(Math.random() * 100000);
+        imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(danbooruTags)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
+        imgContainer.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✨</span> ストーリー＆極上アニメイラストを生成';
+      }
     }
 
     function showError(msg) {
