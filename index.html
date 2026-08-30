@@ -191,12 +191,11 @@
     // パスワード・伏せ字切り替え
     function toggleVisibility(id) {
       const input = document.getElementById(id);
-      if (input.type === 'password') {
-        input.type = 'text';
-      } else {
-        input.type = 'password';
-      }
+      input.type = (input.type === 'password') ? 'text' : 'password';
     }
+
+    // 遅延ヘルパー
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     window.addEventListener('load', () => {
       const load = (id, key) => {
@@ -296,16 +295,10 @@
           
           const res = await fetch(url, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{
-                parts: [{ text: prompt }]
-              }],
-              generationConfig: {
-                responseMimeType: "application/json"
-              }
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
             })
           });
 
@@ -352,30 +345,27 @@
         } else {
           fullScenes.push({
             caption: fallbackCaptions[i],
-            prompt: `anime style, ${topic}, highres, cinematic lighting, scene ${i + 1}`
+            prompt: `anime style, ${topic}, scene ${i + 1}`
           });
         }
       }
 
-      showMsg('4枚のシーンイラストを描画中...');
       document.getElementById('imgWrap').classList.remove('hidden');
 
       const badge = document.getElementById('imgEngineBadge');
-      if (xaiKey) {
-        badge.innerText = 'Grok (xAI) Engine';
-      } else {
-        badge.innerText = 'Flux HD Engine';
-      }
+      badge.innerText = xaiKey ? 'Grok (xAI) Engine' : 'Flux Fast Engine';
 
       const baseSeed = Math.floor(Math.random() * 800000);
 
-      // Grok または Flux による描画
-      const loadSceneImage = async (scene, index) => {
-        const imgElem = document.getElementById(`sceneImg${index + 1}`);
-        const capElem = document.getElementById(`caption${index + 1}`);
+      // 1枚ずつ確実に画像を読み込むシーケンシャル処理
+      for (let i = 0; i < fullScenes.length; i++) {
+        showMsg(`イラスト Scene ${i + 1}/4 を描画中...`);
+        const scene = fullScenes[i];
+        const imgElem = document.getElementById(`sceneImg${i + 1}`);
+        const capElem = document.getElementById(`caption${i + 1}`);
         capElem.innerText = scene.caption;
 
-        const finalPrompt = `Japanese anime screencap, masterpiece, 8k, cinematic lighting, ${scene.prompt}`;
+        const finalPrompt = `Japanese anime screencap, masterpiece, clean lines, ${scene.prompt}`;
 
         if (xaiKey) {
           try {
@@ -397,10 +387,8 @@
               const grokData = await grokRes.json();
               if (grokData.data?.[0]?.url) {
                 imgElem.src = grokData.data[0].url;
-                return;
-              } else if (grokData.data?.[0]?.b64_json) {
-                imgElem.src = `data:image/png;base64,${grokData.data[0].b64_json}`;
-                return;
+                await sleep(200);
+                continue;
               }
             }
           } catch (e) {
@@ -408,12 +396,16 @@
           }
         }
 
-        // フォールバック (Flux)
-        const seed = baseSeed + (index * 137);
-        imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=768&height=576&model=flux&enhance=true&nologo=true&seed=${seed}`;
-      };
-
-      await Promise.all(fullScenes.map((s, idx) => loadSceneImage(s, idx)));
+        // 軽量な 512x384 解像度で確実に描画（サーバー負荷を最小化）
+        const seed = baseSeed + (i * 37);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=512&height=384&model=flux&nologo=true&seed=${seed}`;
+        
+        // 画像を即座にセット
+        imgElem.src = imageUrl;
+        
+        // サーバー連続アクセス制限を避けるため 300ミリ秒待機
+        await sleep(300);
+      }
 
       showMsg('');
       btn.disabled = false;
