@@ -4,26 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CI Language Assistant</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+  <script>
+    // エラーが起きたら即座に画面最上部へ赤文字で強制表示する安全装置
+    window.onerror = function(msg, url, line) {
+      const box = document.getElementById('errorBox');
+      if (box) {
+        box.innerText = '【実行時エラー】' + msg + ' (行: ' + line + ')';
+        box.classList.remove('hidden');
+      }
+      return false;
+    };
+  </script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
     <p class="text-xs text-slate-500 mb-4">Gemini × 高精細イラスト × ネイティブ音声</p>
 
-    <!-- エラー表示エリア -->
-    <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 leading-relaxed break-words whitespace-pre-wrap font-mono"></div>
+    <!-- エラー表示ボックス -->
+    <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border-2 border-rose-300 rounded-lg text-xs text-rose-700 leading-relaxed break-words whitespace-pre-wrap font-mono font-bold"></div>
 
-    <!-- API・サーバー設定エリア -->
+    <!-- 進行状況ステータス表示 -->
+    <div id="statusBox" class="hidden mb-3 p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700 font-semibold text-center"></div>
+
+    <!-- API設定エリア -->
     <details class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs" open>
       <summary class="font-semibold text-slate-700 cursor-pointer select-none">
-        ⚙️ 設定（APIキー・各種設定）
+        ⚙️ API・接続設定（クリックで開閉）
       </summary>
       <div class="space-y-2 mt-3 pt-2 border-t border-slate-200">
         <!-- Gemini -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (必須):</label>
+            <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (文章生成・必須):</label>
             <span id="geminiSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
           </div>
           <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -44,7 +58,7 @@
             <label class="text-[11px] font-semibold text-slate-700">3. Google TTS サーバーURL (任意):</label>
             <span id="gFuncSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
           </div>
-          <input id="gFuncUrl" type="url" placeholder="https://asia-northeast1-...cloudfunctions.net/tts" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <input id="gFuncUrl" type="url" placeholder="[https://asia-northeast1-...cloudfunctions.net/tts](https://asia-northeast1-...cloudfunctions.net/tts)" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
 
         <!-- ElevenLabs -->
@@ -55,7 +69,6 @@
           </div>
           <input id="elevenKey" type="password" placeholder="sk_..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
-        <p class="text-[9px] text-slate-400">※各キーは端末内(LocalStorage)に安全に保存されます</p>
       </div>
     </details>
 
@@ -91,17 +104,17 @@
       </div>
     </div>
 
-    <!-- テーマ入力 & 生成ボタン (直接onclickで実行) -->
+    <!-- テーマ入力 & 生成ボタン -->
     <div class="mb-4">
       <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム、雨の街）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <button id="genBtn" onclick="generateContent()" type="button" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-3 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm touch-manipulation">
+      <button id="genBtn" onclick="startGeneration()" type="button" class="w-full bg-indigo-600 active:bg-indigo-800 text-white font-bold py-3 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm touch-manipulation cursor-pointer">
         <span>✨</span> ストーリー＆情景イラストを生成
       </button>
     </div>
 
     <!-- 生成されたイラスト画像 -->
     <div id="imageContainer" class="hidden mb-4">
-      <label class="block text-xs font-semibold text-slate-600 mb-1">作画監督カット (Visual Context):</label>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">作画カット (Visual Context):</label>
       <div class="relative w-full aspect-[4/3] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
         <img id="generatedImage" src="" alt="情景イラスト" class="w-full h-full object-cover">
       </div>
@@ -113,7 +126,7 @@
       <textarea id="resultText" rows="4" class="w-full border border-slate-300 rounded-lg p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans" placeholder="ここにストーリーが表示されます..."></textarea>
     </div>
 
-    <!-- 音声エンジン選択＆速度コントロールパネル -->
+    <!-- 音声エンジン選択＆コントロール -->
     <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 mb-2 space-y-3">
       <div class="grid grid-cols-2 gap-2">
         <div>
@@ -137,10 +150,10 @@
       </div>
 
       <div class="flex gap-2">
-        <button id="playBtn" onclick="speakText()" type="button" class="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1 shadow-sm touch-manipulation">
+        <button id="playBtn" onclick="handleSpeak()" type="button" class="flex-1 bg-emerald-600 active:bg-emerald-800 text-white font-bold py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1 shadow-sm touch-manipulation cursor-pointer">
           <span>▶</span> 音声再生
         </button>
-        <button id="stopBtn" onclick="stopSpeech()" type="button" class="bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs transition shadow-sm touch-manipulation">
+        <button onclick="stopSpeech()" type="button" class="bg-white border border-slate-200 active:bg-slate-100 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs transition shadow-sm touch-manipulation">
           停止
         </button>
       </div>
@@ -150,8 +163,8 @@
   <script>
     let activeAudio = null;
 
-    // 画面ロード時に保存されたキーを復元
-    window.onload = function() {
+    // ロード時に保存キーを展開
+    document.addEventListener('DOMContentLoaded', () => {
       try {
         const savedGemini = localStorage.getItem('ci_gemini_key');
         if (savedGemini) {
@@ -174,67 +187,80 @@
           document.getElementById('elevenSaved').classList.remove('hidden');
         }
       } catch (e) {
-        console.error('LocalStorage error:', e);
+        console.error(e);
       }
-    };
+    });
+
+    function setStatus(text) {
+      const statusBox = document.getElementById('statusBox');
+      if (text) {
+        statusBox.innerText = text;
+        statusBox.classList.remove('hidden');
+      } else {
+        statusBox.classList.add('hidden');
+      }
+    }
 
     function showError(msg) {
       const errorBox = document.getElementById('errorBox');
       errorBox.innerText = msg;
       errorBox.classList.remove('hidden');
+      setStatus('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    async function generateContent() {
+    // ボタンタップで即座に同期実行される関数
+    async function startGeneration() {
+      const btn = document.getElementById('genBtn');
       const errorBox = document.getElementById('errorBox');
       const imgContainer = document.getElementById('imageContainer');
       const imgElem = document.getElementById('generatedImage');
-      const btn = document.getElementById('genBtn');
-      
+
+      // 画面を即座に処理中状態へ更新（タップフィードバック）
       errorBox.classList.add('hidden');
       errorBox.innerText = '';
       imgContainer.classList.add('hidden');
-
-      const apiKey = document.getElementById('apiKey').value.trim().replace(/^["']|["']$/g, '');
-      const hfToken = document.getElementById('hfToken').value.trim().replace(/^["']|["']$/g, '');
-      const gFuncUrl = document.getElementById('gFuncUrl').value.trim();
-      const elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
-
-      if (!apiKey) {
-        showError('【エラー】Gemini APIキーが入力されていません。\n「⚙️ 設定」を開き、「AIzaSy...」で始まるキーを入力してください。');
-        return;
-      }
-
-      localStorage.setItem('ci_gemini_key', apiKey);
-      document.getElementById('geminiSaved').classList.remove('hidden');
-
-      if (hfToken) {
-        localStorage.setItem('ci_hf_token', hfToken);
-        document.getElementById('hfSaved').classList.remove('hidden');
-      }
-      if (gFuncUrl) {
-        localStorage.setItem('ci_gfunc_url', gFuncUrl);
-        document.getElementById('gFuncSaved').classList.remove('hidden');
-      }
-      if (elevenKey) {
-        localStorage.setItem('ci_eleven_key', elevenKey);
-        document.getElementById('elevenSaved').classList.remove('hidden');
-      }
-
-      const langSelect = document.getElementById('lang');
-      const targetLang = langSelect.options[langSelect.selectedIndex].text;
-      const level = document.getElementById('level').value;
-      const lengthChoice = document.getElementById('length').value;
-      const topic = document.getElementById('topic').value.trim() || '日常の出来事';
-
-      let lengthPrompt = '全体で60〜100語程度の標準的なパラグラフ';
-      if (lengthChoice === 'short') lengthPrompt = '全体で30〜50語程度（2〜3文）の非常に短いパラグラフ';
-      if (lengthChoice === 'long') lengthPrompt = '全体で120〜150語程度のしっかりとしたパラグラフ';
-
       btn.disabled = true;
       btn.innerHTML = '<span class="animate-spin">⏳</span> シーン設計中...';
+      setStatus('Gemini API へ接続しています...');
 
-      const textPrompt = `あなたは「第二言語習得論の専門家」兼「一流のアニメーション映画の作画監督」です。
+      try {
+        const apiKey = document.getElementById('apiKey').value.trim().replace(/^["']|["']$/g, '');
+        const hfToken = document.getElementById('hfToken').value.trim().replace(/^["']|["']$/g, '');
+        const gFuncUrl = document.getElementById('gFuncUrl').value.trim();
+        const elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
+
+        if (!apiKey) {
+          throw new Error('Gemini APIキーが未入力です。「⚙️ API・接続設定」に AIzaSy... で始まるキーを入力してください。');
+        }
+
+        localStorage.setItem('ci_gemini_key', apiKey);
+        document.getElementById('geminiSaved').classList.remove('hidden');
+
+        if (hfToken) {
+          localStorage.setItem('ci_hf_token', hfToken);
+          document.getElementById('hfSaved').classList.remove('hidden');
+        }
+        if (gFuncUrl) {
+          localStorage.setItem('ci_gfunc_url', gFuncUrl);
+          document.getElementById('gFuncSaved').classList.remove('hidden');
+        }
+        if (elevenKey) {
+          localStorage.setItem('ci_eleven_key', elevenKey);
+          document.getElementById('elevenSaved').classList.remove('hidden');
+        }
+
+        const langSelect = document.getElementById('lang');
+        const targetLang = langSelect.options[langSelect.selectedIndex].text;
+        const level = document.getElementById('level').value;
+        const lengthChoice = document.getElementById('length').value;
+        const topic = document.getElementById('topic').value.trim() || '日常の出来事';
+
+        let lengthPrompt = '全体で60〜100語程度の標準的なパラグラフ';
+        if (lengthChoice === 'short') lengthPrompt = '全体で30〜50語程度（2〜3文）の非常に短いパラグラフ';
+        if (lengthChoice === 'long') lengthPrompt = '全体で120〜150語程度のしっかりとしたパラグラフ';
+
+        const textPrompt = `あなたは「第二言語習得論の専門家」兼「一流のアニメーション映画の作画監督」です。
 
 【指示1: ストーリー作成】
 - 言語: ${targetLang}
@@ -268,103 +294,104 @@
   "director_tags": "出演者タグ, 動作タグ, 背景タグ, 演出照明タグ（カンマ区切り）"
 }`;
 
-      // 安定稼働する現行モデルリスト
-      const candidateModels = [
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
-        'gemini-2.5-flash-lite'
-      ];
+        // 確実に応答するGeminiモデルリスト
+        const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+        let generatedStory = '';
+        let directorTags = '';
+        let isSuccess = false;
+        let lastErr = '';
 
-      let isSuccess = false;
-      let lastErrorMessage = '';
-      let generatedStory = '';
-      let directorTags = '';
+        for (const model of models) {
+          try {
+            setStatus(`Gemini (${model}) でストーリー生成中...`);
+            const endpoint = `[https://generativelanguage.googleapis.com/v1beta/models/$](https://generativelanguage.googleapis.com/v1beta/models/$){model}:generateContent?key=${apiKey}`;
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: textPrompt }] }]
+              })
+            });
 
-      for (const model of candidateModels) {
-        try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: textPrompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
+            const data = await res.json();
+            if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+              let rawText = data.candidates[0].content.parts[0].text.trim();
+              // Markdownの ```json 枠を安全に除去
+              rawText = rawText.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
 
-          const data = await res.json();
-          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            const rawJson = data.candidates[0].content.parts[0].text;
-            let parsed;
-            try {
-              parsed = JSON.parse(rawJson);
-            } catch (pErr) {
-              const storyMatch = rawJson.match(/"story"\s*:\s*"([^"]+)"/);
-              parsed = { story: storyMatch ? storyMatch[1] : rawJson, director_tags: topic };
-            }
-
-            generatedStory = parsed.story;
-            directorTags = parsed.director_tags || `anime screencap, ${topic}`;
-            document.getElementById('resultText').value = generatedStory.trim();
-            isSuccess = true;
-            break;
-          } else if (data.error) {
-            lastErrorMessage = `[${model}] ${data.error.message}`;
-          }
-        } catch (e) {
-          lastErrorMessage = `[${model}] 通信エラー: ${e.message}`;
-        }
-      }
-
-      if (!isSuccess) {
-        showError(`【文章生成エラー】\n${lastErrorMessage}\n\n※APIキー（AIzaSy...）をご確認ください。`);
-        btn.disabled = false;
-        btn.innerHTML = '<span>✨</span> ストーリー＆情景イラストを生成';
-        return;
-      }
-
-      // 画像生成
-      btn.innerHTML = '<span class="animate-spin">🎨</span> 作画レンダリング中...';
-
-      const fullPrompt = `masterpiece, newest, absurdres, highres, anime screencap, cinematic lighting, ${directorTags}`;
-      const negativePrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, chibi, sweat drops, manga symbols, sparkles, speech bubble, comic lines';
-
-      try {
-        if (hfToken) {
-          const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${hfToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              inputs: fullPrompt,
-              parameters: {
-                negative_prompt: negativePrompt,
-                width: 768,
-                height: 576,
-                guidance_scale: 7.0,
-                num_inference_steps: 28
+              try {
+                const parsed = JSON.parse(rawText);
+                generatedStory = parsed.story;
+                directorTags = parsed.director_tags;
+              } catch (parseErr) {
+                generatedStory = rawText;
+                directorTags = topic;
               }
-            })
-          });
 
-          if (hfRes.ok) {
-            const blob = await hfRes.blob();
-            imgElem.src = URL.createObjectURL(blob);
+              document.getElementById('resultText').value = generatedStory.trim();
+              isSuccess = true;
+              break;
+            } else if (data.error) {
+              lastErr = `[${model}] ${data.error.message}`;
+            }
+          } catch (netErr) {
+            lastErr = `[${model}] ${netErr.message}`;
+          }
+        }
+
+        if (!isSuccess) {
+          throw new Error(`文章生成に失敗しました。\n${lastErr}`);
+        }
+
+        // 画像生成フェーズ
+        setStatus('情景イラストを作画中...');
+        btn.innerHTML = '<span class="animate-spin">🎨</span> 作画レンダリング中...';
+
+        const fullPrompt = `masterpiece, newest, absurdres, highres, anime screencap, cinematic lighting, ${directorTags || topic}`;
+        const negativePrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, chibi, sweat drops, manga symbols, sparkles, speech bubble, comic lines';
+
+        if (hfToken) {
+          try {
+            const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${hfToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                inputs: fullPrompt,
+                parameters: {
+                  negative_prompt: negativePrompt,
+                  width: 768,
+                  height: 576,
+                  guidance_scale: 7.0,
+                  num_inference_steps: 28
+                }
+              })
+            });
+
+            if (hfRes.ok) {
+              const blob = await hfRes.blob();
+              imgElem.src = URL.createObjectURL(blob);
+              imgContainer.classList.remove('hidden');
+            } else {
+              throw new Error(`HFコード: ${hfRes.status}`);
+            }
+          } catch (hfErr) {
+            // HF失敗時はPollinationsにフォールバック
+            const seed = Math.floor(Math.random() * 100000);
+            imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
             imgContainer.classList.remove('hidden');
-          } else {
-            throw new Error(`HF応答コード: ${hfRes.status}`);
           }
         } else {
           const seed = Math.floor(Math.random() * 100000);
           imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
           imgContainer.classList.remove('hidden');
         }
-      } catch (imgErr) {
-        const seed = Math.floor(Math.random() * 100000);
-        imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
-        imgContainer.classList.remove('hidden');
+
+        setStatus('');
+      } catch (err) {
+        showError(err.message);
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<span>✨</span> ストーリー＆情景イラストを生成';
@@ -372,7 +399,7 @@
     }
 
     // 音声再生
-    async function speakText() {
+    async function handleSpeak() {
       const text = document.getElementById('resultText').value.trim();
       if (!text) {
         showError('先にストーリーを生成するか、文章を入力してください。');
@@ -387,12 +414,12 @@
       const playBtn = document.getElementById('playBtn');
 
       playBtn.disabled = true;
-      playBtn.innerHTML = '<span class="animate-spin">⏳</span> 準備中...';
+      playBtn.innerHTML = '<span class="animate-spin">⏳</span> 音声準備中...';
 
       try {
         if (engine === 'gfunc') {
           const gFuncUrl = document.getElementById('gFuncUrl').value.trim();
-          if (!gFuncUrl) throw new Error('Google TTS サーバーURLが未設定です。');
+          if (!gFuncUrl) throw new Error('Google TTS サーバーURLが未設定です。「⚙️ API・接続設定」に入力してください。');
 
           const response = await fetch(gFuncUrl, {
             method: 'POST',
@@ -400,7 +427,7 @@
             body: JSON.stringify({ text, langCode: rawLang, rate })
           });
 
-          if (!response.ok) throw new Error(`サーバー応答エラー: ${response.status}`);
+          if (!response.ok) throw new Error(`サーバーエラー: ${response.status}`);
           const blob = await response.blob();
           await playBlobAudio(blob, 1.0);
 
@@ -451,6 +478,35 @@
         };
         activeAudio.onerror = () => {
           URL.revokeObjectURL(audioUrl);
-          reject(new Error('オーディオの読み込みに失敗しました。'));
+          reject(new Error('オーディオの再生に失敗しました。'));
         };
-        activeAudio.play().cat
+        activeAudio.play().catch(reject);
+      });
+    }
+
+    function playBrowserVoice(text, langCode, rate) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = langCode;
+      u.rate = rate;
+
+      const voices = window.speechSynthesis.getVoices();
+      const matchedVoice = voices.find(v => v.lang === langCode || v.lang.startsWith(langCode.split('-')[0]));
+      if (matchedVoice) {
+        u.voice = matchedVoice;
+      }
+
+      window.speechSynthesis.speak(u);
+    }
+
+    function stopSpeech() {
+      if (activeAudio) {
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+        activeAudio = null;
+      }
+      window.speechSynthesis.cancel();
+    }
+  </script>
+</body>
+</html>
