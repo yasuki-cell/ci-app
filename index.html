@@ -15,21 +15,21 @@
     <!-- ヘッダー -->
     <div>
       <h1 class="text-lg font-bold text-slate-900">🌱 CI 言語学習アプリ</h1>
-      <p class="text-xs text-slate-500">Grok 画像生成 × Gemini × 米国肉声</p>
+      <p class="text-xs text-slate-500">4シーン連動イラスト × ストーリー × 米国肉声</p>
     </div>
 
     <!-- エラー・通知表示 -->
     <div id="msgBox" class="hidden p-3 rounded-lg text-xs font-mono leading-relaxed break-words whitespace-pre-wrap"></div>
 
     <!-- 設定エリア -->
-    <details class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
+    <details class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs" open>
       <summary class="font-bold text-slate-700 cursor-pointer select-none">
         ⚙️ APIキー・サーバー設定
       </summary>
       <div class="space-y-3 mt-3 pt-2 border-t border-slate-200">
         <div>
           <label class="block font-semibold mb-1 text-slate-600">1. Gemini API Key (必須):</label>
-          <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <input id="apiKey" type="password" placeholder="AIzaSy... または AQ..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
         </div>
         <div>
           <label class="block font-semibold mb-1 text-slate-600">2. Grok (xAI) API Key (画像生成・任意):</label>
@@ -82,7 +82,7 @@
     <div class="space-y-2">
       <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム、雨の日の出来事）" class="w-full border border-slate-300 rounded p-2 text-xs">
       <button id="genBtn" onclick="runGenerate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-xs transition shadow">
-        ✨ 4シーン連動ストーリー＆Grokイラスト生成
+        ✨ 4シーン連動ストーリー＆イラスト生成
       </button>
     </div>
 
@@ -90,7 +90,7 @@
     <div id="imgWrap" class="hidden space-y-2">
       <div class="flex justify-between items-center">
         <span class="text-xs font-semibold text-slate-700">ストーリー絵巻 (4 Scenes):</span>
-        <span id="imgEngineBadge" class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">Grok Powered</span>
+        <span id="imgEngineBadge" class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">4-Cut Storyboard</span>
       </div>
       
       <div class="grid grid-cols-2 gap-2">
@@ -202,10 +202,12 @@
     // ストーリー＆4シーン連動イラスト生成
     async function runGenerate() {
       const btn = document.getElementById('genBtn');
-      const apiKey = document.getElementById('apiKey').value.trim();
-      const xaiKey = document.getElementById('xaiKey').value.trim();
-      const gFuncUrl = document.getElementById('gFuncUrl').value.trim();
-      const elevenKey = document.getElementById('elevenKey').value.trim();
+      
+      // キー文字列を完全にトリミング・サニタイズ
+      let apiKey = document.getElementById('apiKey').value.trim().replace(/^["']|["']$/g, '');
+      let xaiKey = document.getElementById('xaiKey').value.trim().replace(/^["']|["']$/g, '');
+      let gFuncUrl = document.getElementById('gFuncUrl').value.trim();
+      let elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
 
       if (!apiKey) {
         showMsg('【エラー】Gemini APIキーを入力してください（⚙️ 設定欄）。', true);
@@ -240,13 +242,12 @@
 - 長さ: ${lengthDesc}
 - 【禁止】本文中に年齢（例: "I am 25..."）や定型自己紹介を書かないこと。自然な日常ストーリーのみ。
 
-【指示2: 4つのシーン作画プロンプト作成 (Grok / Image Generation用)】
-ストーリーの最初から最後までを起承転結の4つの連続した情景（Scene 1〜4）に分割し、Grokで美麗な日本アニメ調イラストを生成するための詳細な英語プロンプトと、短い日本語説明を作成してください。
+【指示2: 4つのシーン作画プロンプト作成 (Image Generation用)】
+ストーリーの最初から最後までを起承転結の4つの連続した情景（Scene 1〜4）に分割し、美麗な日本アニメ調イラストを生成するための詳細な英語プロンプトと、短い日本語説明を作成してください。
 
 [作画ルール]
-- スタイル: Beautiful modern Japanese anime film style, Makoto Shinkai aesthetic, cinematic lighting, ultra-detailed
+- スタイル: Beautiful modern Japanese anime style, cinematic lighting, ultra-detailed
 - 出演者: ストーリーの文脈に合わせて柔軟に調整（1人、複数人、人物なし scenery など）。男性主人公を描く時は25歳大人の男性。
-- 各シーンの動作・背景・光の陰影を詳細に記述。
 
 必ず以下のJSON形式のみで出力してください:
 {
@@ -264,18 +265,27 @@
       let isSuccess = false;
       let lastErr = '';
 
+      // 現行のGemini安定モデル
       const candidateModels = [
-        'gemini-3.6-flash',
-        'gemini-3.7-flash',
-        'gemini-3.5-flash-lite'
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-3.6-flash'
       ];
 
       for (const model of candidateModels) {
         try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          
+          // x-goog-api-key ヘッダーと URL パラメータの両方で認証
+          const res = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
           });
 
           const data = await res.json();
@@ -303,9 +313,9 @@
       }
 
       if (!isSuccess) {
-        showMsg(`【エラー】文章生成に失敗しました。\n${lastErr}`, true);
+        showMsg(`【文章生成エラー】\n${lastErr}\n\n※Google AI Studio (https://aistudio.google.com/) で発行したGemini APIキーであることを確認してください。`, true);
         btn.disabled = false;
-        btn.innerText = '✨ 4シーン連動ストーリー＆Grokイラスト生成';
+        btn.innerText = '✨ 4シーン連動ストーリー＆イラスト生成';
         return;
       }
 
@@ -338,7 +348,7 @@
 
       const baseSeed = Math.floor(Math.random() * 800000);
 
-      // Grok (xAI) または Flux による描画
+      // Grok または Flux による描画
       const loadSceneImage = async (scene, index) => {
         const imgElem = document.getElementById(`sceneImg${index + 1}`);
         const capElem = document.getElementById(`caption${index + 1}`);
@@ -346,7 +356,6 @@
 
         const finalPrompt = `Japanese anime screencap, masterpiece, 8k, cinematic lighting, ${scene.prompt}`;
 
-        // 1. Grok API キーがある場合
         if (xaiKey) {
           try {
             const grokRes = await fetch('https://api.x.ai/v1/images/generations', {
@@ -374,11 +383,11 @@
               }
             }
           } catch (e) {
-            console.warn('Grok API fallback to Flux:', e);
+            console.warn('Grok fallback:', e);
           }
         }
 
-        // 2. フォールバック (Flux / Pollinations)
+        // フォールバック
         const seed = baseSeed + (index * 137);
         imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=768&height=576&model=flux&enhance=true&nologo=true&seed=${seed}`;
       };
@@ -387,7 +396,7 @@
 
       showMsg('');
       btn.disabled = false;
-      btn.innerText = '✨ 4シーン連動ストーリー＆Grokイラスト生成';
+      btn.innerText = '✨ 4シーン連動ストーリー＆イラスト生成';
     }
 
     // 音声再生（ElevenLabs: 米国ナレーション音声 Adam）
