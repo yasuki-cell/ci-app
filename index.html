@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 Flash × 25歳男性情景イラスト × 音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini API（混雑自動回避対応）× 25歳男性情景イラスト</p>
 
     <!-- APIキー入力 -->
     <div class="mb-4">
@@ -21,7 +21,7 @@
       <p class="text-[10px] text-slate-400 mt-1">※キーはお使いの端末にのみ安全に保存されます</p>
     </div>
 
-    <!-- 設定（言語 / レベル / 文章の長さ） -->
+    <!-- 設定 -->
     <div class="grid grid-cols-3 gap-2 mb-4">
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">言語:</label>
@@ -161,54 +161,78 @@
 {
   "story": "ターゲット言語で書いたストーリー本文",
   "action": "Describe what the 25-year-old adult male protagonist is specifically doing in 1 English sentence",
-  "place": "Clear recognizable physical location (e.g. cafe counter, train platform, bookstore) in 3-5 English words",
+  "place": "Clear recognizable physical location in 3-5 English words",
   "has_child": false
 }`;
 
-      try {
-        // gemini-3.6-flash を指定
-        const textRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: textPrompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-          })
-        });
+      // 混雑時に順次フォールバックする最新モデルリスト
+      const fallbackModels = [
+        'gemini-3.6-flash',
+        'gemini-3.7-flash',
+        'gemini-2.0-flash-lite'
+      ];
 
-        const textData = await textRes.json();
+      let isSuccess = false;
+      let lastErrorMessage = '';
+      let generatedStory = '';
+      let actionDesc = topic;
+      let placeDesc = 'everyday location';
+      let hasChild = false;
 
-        if (!textRes.ok) {
-          throw new Error(textData.error?.message || 'Gemini APIの通信エラーです。');
+      for (const model of fallbackModels) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: textPrompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            const rawJson = data.candidates[0].content.parts[0].text;
+            const parsed = JSON.parse(rawJson);
+            generatedStory = parsed.story;
+            actionDesc = parsed.action || topic;
+            placeDesc = parsed.place || 'everyday location';
+            hasChild = parsed.has_child === true || topic.includes('子供') || topic.includes('子ども');
+
+            document.getElementById('resultText').value = generatedStory.trim();
+            isSuccess = true;
+            break;
+          } else if (data.error) {
+            lastErrorMessage = data.error.message;
+          }
+        } catch (e) {
+          lastErrorMessage = e.message;
         }
+      }
 
-        const rawJson = textData.candidates?.[0]?.content?.parts?.[0]?.text;
-        const parsed = JSON.parse(rawJson);
-        const generatedStory = parsed.story;
-        const actionDesc = parsed.action || topic;
-        const placeDesc = parsed.place || 'everyday location';
-        const hasChild = parsed.has_child === true || topic.includes('子供') || topic.includes('子ども');
-
-        document.getElementById('resultText').value = generatedStory.trim();
-
-        // 画像生成
-        btn.innerHTML = '<span class="animate-spin">🎨</span> イラスト作成中...';
-
-        const childConstraint = hasChild ? '' : 'NO children, NO toddlers, adult protagonist only,';
-        const imagePrompt = `Modern Japanese anime illustration style. A friendly 25-year-old young adult East Asian man with neat short dark hair, expressive open eyes, performing ${actionDesc} in a clearly recognizable ${placeDesc}. Clean black outlines, bright vibrant solid colors, clear cel-shading, high contrast. STRICT NEGATIVES: ${childConstraint} NO text, NO speech bubbles, NO manga symbols, NO sparkles, NO sweat drops, NO speed lines, NO pastel tones.`;
-        
-        const seed = Math.floor(Math.random() * 100000);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=450&nologo=true&seed=${seed}`;
-        
-        imgElem.src = imageUrl;
-        imgContainer.classList.remove('hidden');
-
-      } catch (err) {
-        showError(`【エラー詳細】\n${err.message}`);
-      } finally {
+      if (!isSuccess) {
+        showError(`【混雑・接続エラー】\n${lastErrorMessage}\n\n※Googleのサーバーが一時的に混雑しています。1〜2分置いてから再度お試しください。`);
         btn.disabled = false;
         btn.innerHTML = '<span>✨</span> ストーリー＆イラストを生成';
+        return;
       }
+
+      // 画像生成
+      btn.innerHTML = '<span class="animate-spin">🎨</span> イラスト作成中...';
+
+      const childConstraint = hasChild ? '' : 'NO children, NO toddlers, adult protagonist only,';
+      const imagePrompt = `Modern Japanese anime illustration style. A friendly 25-year-old young adult East Asian man with neat short dark hair, expressive open eyes, performing ${actionDesc} in a clearly recognizable ${placeDesc}. Clean black outlines, bright vibrant solid colors, clear cel-shading, high contrast. STRICT NEGATIVES: ${childConstraint} NO text, NO speech bubbles, NO manga symbols, NO sparkles, NO sweat drops, NO speed lines, NO pastel tones.`;
+      
+      const seed = Math.floor(Math.random() * 100000);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=450&nologo=true&seed=${seed}`;
+      
+      imgElem.src = imageUrl;
+      imgContainer.classList.remove('hidden');
+
+      btn.disabled = false;
+      btn.innerHTML = '<span>✨</span> ストーリー＆イラストを生成';
     }
 
     function showError(msg) {
