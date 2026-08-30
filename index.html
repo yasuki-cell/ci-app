@@ -7,28 +7,36 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
-  <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border p-5">
+  <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（スマホ対応版）</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（エラー修正版）</p>
 
+    <!-- APIキー入力 -->
     <div class="mb-4">
-      <label class="block text-xs font-semibold text-slate-600 mb-1">Gemini API Key:</label>
-      <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border rounded-lg p-2 text-xs bg-slate-50">
+      <div class="flex justify-between items-center mb-1">
+        <label class="text-xs font-semibold text-slate-600">Gemini API Key:</label>
+        <span id="keySavedStatus" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済み</span>
+      </div>
+      <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <p class="text-[10px] text-slate-400 mt-1">※キーはスマホのブラウザ内にのみ安全に一時保存されます</p>
     </div>
 
+    <!-- 設定 -->
     <div class="grid grid-cols-2 gap-2 mb-4">
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">言語:</label>
-        <select id="lang" class="w-full border rounded-lg p-2 text-xs bg-slate-50">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">学習言語:</label>
+        <select id="lang" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50">
           <option value="en-US">英語</option>
           <option value="fr-FR">フランス語</option>
           <option value="zh-CN">中国語</option>
           <option value="es-ES">スペイン語</option>
+          <option value="de-DE">ドイツ語</option>
+          <option value="ko-KR">韓国語</option>
         </select>
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">レベル:</label>
-        <select id="level" class="w-full border rounded-lg p-2 text-xs bg-slate-50">
+        <select id="level" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50">
           <option value="A1 (入門・超基礎)">入門 (A1)</option>
           <option value="A2 (初級・日常)">初級 (A2)</option>
           <option value="B1 (中級)">中級 (B1)</option>
@@ -36,29 +44,61 @@
       </div>
     </div>
 
+    <!-- テーマ入力 & 生成ボタン -->
     <div class="mb-4">
-      <input id="topic" type="text" placeholder="テーマ（例: 朝のコーヒー、散歩）" class="w-full border rounded-lg p-2 text-xs mb-2">
-      <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-xs transition">
-        ✨ AIストーリーを生成
+      <input id="topic" type="text" placeholder="テーマ（例: 朝のコーヒー、公園の散歩）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2">
+        <span>✨</span> AIストーリーを生成
       </button>
     </div>
 
-    <textarea id="resultText" rows="5" class="w-full border rounded-lg p-3 text-xs leading-relaxed mb-3" placeholder="生成されたテキストがここに表示されます..."></textarea>
+    <!-- エラー表示エリア（初期非表示） -->
+    <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 leading-relaxed break-words"></div>
 
+    <!-- 結果テキスト -->
+    <div class="mb-3">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">生成されたストーリー:</label>
+      <textarea id="resultText" rows="5" class="w-full border border-slate-300 rounded-lg p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans" placeholder="ここにストーリーが表示されます..."></textarea>
+    </div>
+
+    <!-- 音声再生ボタン -->
     <div class="flex gap-2">
-      <button onclick="speakText()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 rounded-lg text-xs">
-        ▶ 音声再生
+      <button onclick="speakText()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1">
+        <span>▶</span> 音声再生 (シャドーイング)
       </button>
-      <button onclick="stopSpeech()" class="bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg text-xs">
+      <button onclick="stopSpeech()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs transition">
         停止
       </button>
     </div>
   </div>
 
   <script>
+    // 起動時にローカルストレージからAPIキーを復元
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('ci_gemini_key');
+      if (savedKey) {
+        document.getElementById('apiKey').value = savedKey;
+        document.getElementById('keySavedStatus').classList.remove('hidden');
+      }
+    });
+
     async function generateContent() {
-      const apiKey = document.getElementById('apiKey').value.trim();
-      if (!apiKey) return alert('Gemini APIキーを入力してください');
+      const errorBox = document.getElementById('errorBox');
+      errorBox.classList.add('hidden');
+      errorBox.innerText = '';
+
+      let rawKey = document.getElementById('apiKey').value;
+      // 前後の空白や改行を自動削除
+      const apiKey = rawKey.trim();
+
+      if (!apiKey) {
+        showError('APIキーが入力されていません。「AIzaSy...」で始まるキーを入力してください。');
+        return;
+      }
+
+      // APIキーをローカルに保存
+      localStorage.setItem('ci_gemini_key', apiKey);
+      document.getElementById('keySavedStatus').classList.remove('hidden');
 
       const langSelect = document.getElementById('lang');
       const targetLang = langSelect.options[langSelect.selectedIndex].text;
@@ -67,34 +107,71 @@
       const btn = document.getElementById('genBtn');
 
       btn.disabled = true;
-      btn.innerText = '生成中...';
+      btn.innerHTML = '<span class="animate-spin">⏳</span> 生成中...';
 
-      const prompt = `あなたは第二言語習得論（CI）の専門家です。以下の条件で、情景が目に浮かぶ短い文章を作成してください。
-言語: ${targetLang}
-難易度: ${level}（易しい語彙）
-テーマ: ${topic}
-※解説や日本語訳は書かず、ターゲット言語の80〜120語程度のテキストのみを出力してください。`;
+      const prompt = `あなたは第二言語習得論（CI: Comprehensible Input）の専門家です。
+学習者が日本語を介さず情景をイメージしながら直感的に理解できる文章を作成してください。
 
-      try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-        const data = await response.json();
-        const text = data.candidates[0].content.parts[0].text;
-        document.getElementById('resultText').value = text;
-      } catch (e) {
-        alert('エラーが発生しました。APIキーを確認してください。');
-      } finally {
-        btn.disabled = false;
-        btn.innerText = '✨ AIストーリーを生成';
+【条件】
+1. 言語: ${targetLang}
+2. レベル: ${level}（極めて平易で文脈から意味が推測できる単語・文構造）
+3. テーマ: ${topic}
+4. 出力ルール:
+   - 全体で60〜100語程度の短いパラグラフ
+   - 日本語の訳や解説、挨拶は一切書かず、ターゲット言語のテキストのみを出力してください`;
+
+      // 安定性の高いモデルリスト（順に試行）
+      const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+      let isSuccess = false;
+
+      for (const model of models) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            // エラー応答の場合
+            const msg = data?.error?.message || 'API通信エラー';
+            const status = data?.error?.status || response.status;
+            throw new Error(`[${status}] ${msg}`);
+          }
+
+          if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+            document.getElementById('resultText').value = data.candidates[0].content.parts[0].text.trim();
+            isSuccess = true;
+            break; // 成功したためループを抜ける
+          } else {
+            throw new Error('テキストを生成できませんでした。プロンプトまたは設定を確認してください。');
+          }
+        } catch (err) {
+          if (model === models[models.length - 1]) {
+            // 全モデル失敗時にエラー表示
+            showError(`【エラー詳細】\n${err.message}\n\n※キーが間違っているか、Google AI Studio側で有効化されていない可能性があります。`);
+          }
+        }
       }
+
+      btn.disabled = false;
+      btn.innerHTML = '<span>✨</span> AIストーリーを生成';
+    }
+
+    function showError(msg) {
+      const errorBox = document.getElementById('errorBox');
+      errorBox.innerText = msg;
+      errorBox.classList.remove('hidden');
     }
 
     function speakText() {
-      const text = document.getElementById('resultText').value;
-      if (!text) return;
+      const text = document.getElementById('resultText').value.trim();
+      if (!text) return alert('先にテキストを生成するか、文章を入力してください');
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = document.getElementById('lang').value;
