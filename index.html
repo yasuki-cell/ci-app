@@ -11,7 +11,7 @@
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
     <p class="text-xs text-slate-500 mb-4">Gemini × 高精細イラスト × ネイティブ音声</p>
 
-    <!-- エラー表示エリア（最上部に配置して見落としを防止） -->
+    <!-- エラー表示エリア -->
     <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 leading-relaxed break-words whitespace-pre-wrap font-mono"></div>
 
     <!-- API・サーバー設定エリア -->
@@ -91,10 +91,10 @@
       </div>
     </div>
 
-    <!-- テーマ入力 & 生成ボタン -->
+    <!-- テーマ入力 & 生成ボタン (直接onclickで実行) -->
     <div class="mb-4">
       <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム、雨の街）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <button id="genBtn" type="button" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-3 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm touch-manipulation">
+      <button id="genBtn" onclick="generateContent()" type="button" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-3 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm touch-manipulation">
         <span>✨</span> ストーリー＆情景イラストを生成
       </button>
     </div>
@@ -137,10 +137,10 @@
       </div>
 
       <div class="flex gap-2">
-        <button id="playBtn" type="button" class="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1 shadow-sm touch-manipulation">
+        <button id="playBtn" onclick="speakText()" type="button" class="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1 shadow-sm touch-manipulation">
           <span>▶</span> 音声再生
         </button>
-        <button id="stopBtn" type="button" class="bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs transition shadow-sm touch-manipulation">
+        <button id="stopBtn" onclick="stopSpeech()" type="button" class="bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs transition shadow-sm touch-manipulation">
           停止
         </button>
       </div>
@@ -150,8 +150,8 @@
   <script>
     let activeAudio = null;
 
-    // 画面初期化
-    window.addEventListener('DOMContentLoaded', () => {
+    // 画面ロード時に保存されたキーを復元
+    window.onload = function() {
       try {
         const savedGemini = localStorage.getItem('ci_gemini_key');
         if (savedGemini) {
@@ -173,17 +173,19 @@
           document.getElementById('elevenKey').value = savedEleven;
           document.getElementById('elevenSaved').classList.remove('hidden');
         }
-
-        // イベントリスナーを確実に紐付け
-        document.getElementById('genBtn').addEventListener('click', handleGenerate);
-        document.getElementById('playBtn').addEventListener('click', handleSpeak);
-        document.getElementById('stopBtn').addEventListener('click', stopSpeech);
       } catch (e) {
-        showError('初期化エラー: ' + e.message);
+        console.error('LocalStorage error:', e);
       }
-    });
+    };
 
-    async function handleGenerate() {
+    function showError(msg) {
+      const errorBox = document.getElementById('errorBox');
+      errorBox.innerText = msg;
+      errorBox.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function generateContent() {
       const errorBox = document.getElementById('errorBox');
       const imgContainer = document.getElementById('imageContainer');
       const imgElem = document.getElementById('generatedImage');
@@ -266,11 +268,11 @@
   "director_tags": "出演者タグ, 動作タグ, 背景タグ, 演出照明タグ（カンマ区切り）"
 }`;
 
-      // Gemini 2.5/1.5 の公式安定稼働モデル群
+      // 安定稼働する現行モデルリスト
       const candidateModels = [
         'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-1.5-flash'
+        'gemini-1.5-flash',
+        'gemini-2.5-flash-lite'
       ];
 
       let isSuccess = false;
@@ -297,7 +299,6 @@
             try {
               parsed = JSON.parse(rawJson);
             } catch (pErr) {
-              // JSONパース失敗時の正規表現救済
               const storyMatch = rawJson.match(/"story"\s*:\s*"([^"]+)"/);
               parsed = { story: storyMatch ? storyMatch[1] : rawJson, director_tags: topic };
             }
@@ -370,15 +371,8 @@
       }
     }
 
-    function showError(msg) {
-      const errorBox = document.getElementById('errorBox');
-      errorBox.innerText = msg;
-      errorBox.classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
     // 音声再生
-    async function handleSpeak() {
+    async function speakText() {
       const text = document.getElementById('resultText').value.trim();
       if (!text) {
         showError('先にストーリーを生成するか、文章を入力してください。');
@@ -451,4 +445,12 @@
         const audioUrl = URL.createObjectURL(blob);
         activeAudio = new Audio(audioUrl);
         activeAudio.playbackRate = playbackRate;
-        activeAudio.o
+        activeAudio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        activeAudio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          reject(new Error('オーディオの読み込みに失敗しました。'));
+        };
+        activeAudio.play().cat
