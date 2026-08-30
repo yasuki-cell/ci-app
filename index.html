@@ -15,7 +15,7 @@
     <!-- ヘッダー -->
     <div>
       <h1 class="text-lg font-bold text-slate-900">🌱 CI 言語学習アプリ</h1>
-      <p class="text-xs text-slate-500">ストーリー・イラスト・音声で学ぶ言語アプリ</p>
+      <p class="text-xs text-slate-500">ストーリー・イラスト・米国ネイティブ音声で学ぶアプリ</p>
     </div>
 
     <!-- エラー・通知表示 -->
@@ -40,7 +40,7 @@
           <input id="gFuncUrl" type="url" placeholder="https://...cloudfunctions.net/tts" class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
         </div>
         <div>
-          <label class="block font-semibold mb-1 text-slate-600">4. ElevenLabs API Key (肉声音声・任意):</label>
+          <label class="block font-semibold mb-1 text-slate-600">4. ElevenLabs API Key (米国肉声音声・任意):</label>
           <input id="elevenKey" type="password" placeholder="sk_..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
         </div>
       </div>
@@ -106,9 +106,9 @@
         <div>
           <label class="block font-semibold text-slate-600 mb-1">音声エンジン</label>
           <select id="ttsEngine" class="w-full border border-slate-300 rounded p-1.5 bg-white">
-            <option value="browser" selected>端末標準 (無料・安定)</option>
+            <option value="elevenlabs" selected>ElevenLabs (米国肉声)</option>
+            <option value="browser">端末標準 (無料・安定)</option>
             <option value="gfunc">Google TTS (サーバー)</option>
-            <option value="elevenlabs">ElevenLabs (肉声)</option>
           </select>
         </div>
         <div>
@@ -137,7 +137,6 @@
   <script>
     let currentAudio = null;
 
-    // 起動時の初期化
     window.addEventListener('load', () => {
       const load = (id, key) => {
         const val = localStorage.getItem(key);
@@ -175,7 +174,6 @@
         return;
       }
 
-      // キー保存
       localStorage.setItem('ci_gemini_key', apiKey);
       if (hfToken) localStorage.setItem('ci_hf_token', hfToken);
       if (gFuncUrl) localStorage.setItem('ci_gfunc_url', gFuncUrl);
@@ -218,7 +216,6 @@
       let isSuccess = false;
       let lastErr = '';
 
-      // 現行のアクティブなFlashモデル群
       const candidateModels = [
         'gemini-3.6-flash',
         'gemini-3.7-flash',
@@ -302,7 +299,7 @@
       btn.innerText = '✨ ストーリー＆イラストを生成';
     }
 
-    // 音声再生
+    // 音声再生（ElevenLabs: 米国ナレーション音声 Adam）
     async function runSpeech() {
       const text = document.getElementById('storyText').value.trim();
       if (!text) {
@@ -337,7 +334,10 @@
           const elevenKey = document.getElementById('elevenKey').value.trim();
           if (!elevenKey) throw new Error('ElevenLabs APIキーが未設定です。');
 
-          const res = await fetch('https://api.elevenlabs.io/v1/text-to-speech/JBFqnCBsd6RMkjVDRZzb', {
+          // 米国英語の代表ボイス「Adam」
+          const americanVoiceId = "pNInz6obpgDQGcFmaJgB";
+
+          const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${americanVoiceId}`, {
             method: 'POST',
             headers: { 'xi-api-key': elevenKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({
