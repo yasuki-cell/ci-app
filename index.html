@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × 情景画像生成 (Imagen 3) × 音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × 人物情景イラスト × 音声再生</p>
 
     <!-- APIキー入力 -->
     <div class="mb-4">
@@ -63,11 +63,11 @@
     <!-- エラー表示エリア -->
     <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 leading-relaxed break-words whitespace-pre-wrap"></div>
 
-    <!-- 生成された情景イラスト画像 -->
+    <!-- 生成された人物情景イラスト画像 -->
     <div id="imageContainer" class="hidden mb-4">
       <label class="block text-xs font-semibold text-slate-600 mb-1">情景イメージ (Visual Context):</label>
       <div class="relative w-full aspect-[4/3] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
-        <img id="generatedImage" src="" alt="情景イラスト" class="w-full h-full object-cover">
+        <img id="generatedImage" src="" alt="人物が登場する情景イラスト" class="w-full h-full object-cover">
       </div>
     </div>
 
@@ -153,6 +153,7 @@
 
       const textPrompt = `あなたは第二言語習得論（CI: Comprehensible Input）の専門家です。
 学習者が日本語を介さず情景をイメージしながら直感的に理解できる文章を作成してください。
+登場人物（主人公）の具体的な動作や表情、周囲の情景を分かりやすく描写してください。
 
 【条件】
 1. 言語: ${targetLang}
@@ -165,7 +166,7 @@
       let generatedStory = '';
 
       try {
-        // 1. ストーリーテキストの生成 (Gemini 3.6 Flash)
+        // 1. ストーリーテキストの生成
         const textEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
         const textRes = await fetch(textEndpoint, {
           method: 'POST',
@@ -186,10 +187,11 @@
           throw new Error('AIからテキストを受け取れませんでした。');
         }
 
-        // 2. 情景画像の生成 (Imagen 3)
-        btn.innerHTML = '<span class="animate-spin">🎨</span> 情景イラスト作成中...';
+        // 2. 人物が必ず登場する情景画像の生成
+        btn.innerHTML = '<span class="animate-spin">🎨</span> 人物イラスト作成中...';
         
-        const imagePrompt = `A warm, clear storybook-style digital illustration depicting this scene: ${topic}, ${generatedStory.substring(0, 100)}. Cozy atmosphere, soft lighting, vibrant colors, clean details, no text.`;
+        // 人物の登場と表情・動作を強調したプロンプト
+        const imagePrompt = `A warm, charming storybook-style digital illustration featuring a clear human character engaging in the scene. The person is actively doing actions related to: ${topic}. Emotion: expressive, clear action. Scene context: ${generatedStory.substring(0, 90)}. Soft daylight, cozy vibrant colors, high detail storybook art, centered character, no text.`;
         
         try {
           const imgEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
@@ -211,14 +213,13 @@
             imgElem.src = `data:image/png;base64,${imgData.predictions[0].bytesBase64Encoded}`;
             imgContainer.classList.remove('hidden');
           } else {
-            // 画像生成APIが制限等の場合は Pollinations AI（完全無料・認証不要の高速フォールバック）で生成
-            const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt + ' storybook illustration')}?width=600&height=450&nologo=true&seed=${Math.floor(Math.random()*10000)}`;
+            // フォールバック（Pollinations AI）でも人物描写を固定指定
+            const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=450&nologo=true&seed=${Math.floor(Math.random()*10000)}`;
             imgElem.src = fallbackUrl;
             imgContainer.classList.remove('hidden');
           }
         } catch (imgErr) {
-          // ネットワークエラー時のフォールバック
-          const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(topic + ' charming storybook illustration')}?width=600&height=450&nologo=true&seed=${Math.floor(Math.random()*10000)}`;
+          const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent('A person ' + topic + ' expressive character storybook illustration')}?width=600&height=450&nologo=true&seed=${Math.floor(Math.random()*10000)}`;
           imgElem.src = fallbackUrl;
           imgContainer.classList.remove('hidden');
         }
