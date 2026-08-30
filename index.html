@@ -9,9 +9,9 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × Animagine XL 3.1 × 極上ネイティブ音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × Animagine XL 3.1 × ネイティブ音声</p>
 
-    <!-- APIキー設定エリア（折りたたみ可能） -->
+    <!-- APIキー設定エリア -->
     <details class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
       <summary class="font-semibold text-slate-700 cursor-pointer select-none">
         ⚙️ APIキー設定（クリックで開閉）
@@ -20,7 +20,7 @@
         <!-- Gemini -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (文章生成):</label>
+            <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (文章生成・必須):</label>
             <span id="geminiSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
           </div>
           <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -29,25 +29,16 @@
         <!-- Hugging Face -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] font-semibold text-slate-700">2. Hugging Face Token (画像生成):</label>
+            <label class="text-[11px] font-semibold text-slate-700">2. Hugging Face Token (画像生成・任意):</label>
             <span id="hfSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
           </div>
           <input id="hfToken" type="password" placeholder="hf_..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
 
-        <!-- Google Cloud TTS -->
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] font-semibold text-slate-700">3. Google TTS Key (高音質音声):</label>
-            <span id="gTtsSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
-          </div>
-          <input id="gTtsKey" type="password" placeholder="AIzaSy... (Geminiと同じキーでも可)" class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        </div>
-
         <!-- ElevenLabs -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] font-semibold text-slate-700">4. ElevenLabs API Key (肉声音声):</label>
+            <label class="text-[11px] font-semibold text-slate-700">3. ElevenLabs API Key (肉声音声・任意):</label>
             <span id="elevenSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
           </div>
           <input id="elevenKey" type="password" placeholder="sk_..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -119,7 +110,7 @@
         <div>
           <label class="block text-[11px] font-bold text-indigo-900 mb-1">🎙 音声エンジン:</label>
           <select id="ttsEngine" class="w-full border border-indigo-200 rounded-lg p-1.5 text-xs bg-white text-slate-800 font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="google" selected>Google Cloud TTS (多言語・高音質)</option>
+            <option value="google_direct" selected>Google Native Voice (キー不要)</option>
             <option value="elevenlabs">ElevenLabs (最高峰肉声)</option>
             <option value="browser">端末標準 (Web Speech)</option>
           </select>
@@ -163,11 +154,6 @@
         document.getElementById('hfToken').value = savedHf;
         document.getElementById('hfSaved').classList.remove('hidden');
       }
-      const savedGTts = localStorage.getItem('ci_gtts_key');
-      if (savedGTts) {
-        document.getElementById('gTtsKey').value = savedGTts;
-        document.getElementById('gTtsSaved').classList.remove('hidden');
-      }
       const savedEleven = localStorage.getItem('ci_eleven_key');
       if (savedEleven) {
         document.getElementById('elevenKey').value = savedEleven;
@@ -186,7 +172,6 @@
 
       const apiKey = document.getElementById('apiKey').value.trim().replace(/^["']|["']$/g, '');
       const hfToken = document.getElementById('hfToken').value.trim().replace(/^["']|["']$/g, '');
-      const gTtsKey = document.getElementById('gTtsKey').value.trim().replace(/^["']|["']$/g, '');
       const elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
 
       if (!apiKey) {
@@ -200,10 +185,6 @@
       if (hfToken) {
         localStorage.setItem('ci_hf_token', hfToken);
         document.getElementById('hfSaved').classList.remove('hidden');
-      }
-      if (gTtsKey) {
-        localStorage.setItem('ci_gtts_key', gTtsKey);
-        document.getElementById('gTtsSaved').classList.remove('hidden');
       }
       if (elevenKey) {
         localStorage.setItem('ci_eleven_key', elevenKey);
@@ -343,7 +324,7 @@
       errorBox.classList.remove('hidden');
     }
 
-    // 音声再生関数（Google Cloud TTS / ElevenLabs / Browser）
+    // 音声再生（Google Native / ElevenLabs / Browser）
     async function speakText() {
       const text = document.getElementById('resultText').value.trim();
       if (!text) return alert('先にテキストを生成するか、文章を入力してください');
@@ -351,43 +332,22 @@
       stopSpeech();
 
       const engine = document.getElementById('ttsEngine').value;
-      const langCode = document.getElementById('lang').value;
+      const rawLang = document.getElementById('lang').value;
+      const langShort = rawLang.split('-')[0]; // 'my', 'en', 'fr' など
       const rate = parseFloat(document.getElementById('speechRate').value);
       const playBtn = document.getElementById('playBtn');
 
       playBtn.disabled = true;
-      playBtn.innerHTML = '<span class="animate-spin">⏳</span> 音声生成中...';
+      playBtn.innerHTML = '<span class="animate-spin">⏳</span> 音声準備中...';
 
       const audioPlayer = document.getElementById('audioPlayer');
 
       try {
-        // 1. Google Cloud Text-to-Speech
-        if (engine === 'google') {
-          const gTtsKey = document.getElementById('gTtsKey').value.trim() || document.getElementById('apiKey').value.trim();
-          if (!gTtsKey) throw new Error('Google TTSまたはGeminiのAPIキーを入力してください');
-
-          const ttsRes = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${gTtsKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              input: { text: text },
-              voice: {
-                languageCode: langCode,
-                ssmlGender: "MALE"
-              },
-              audioConfig: {
-                audioEncoding: "MP3",
-                speakingRate: rate
-              }
-            })
-          });
-
-          const ttsData = await ttsRes.json();
-          if (!ttsRes.ok) throw new Error(ttsData.error?.message || 'Google TTSでエラーが発生しました');
-
-          const audioSrc = `data:audio/mp3;base64,${ttsData.audioContent}`;
-          audioPlayer.src = audioSrc;
-          audioPlayer.playbackRate = 1.0;
+        // 1. Google Native Voice (APIキー不要・全言語対応・高音質)
+        if (engine === 'google_direct') {
+          const googleVoiceUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${langShort}&client=tw-ob`;
+          audioPlayer.src = googleVoiceUrl;
+          audioPlayer.playbackRate = rate;
           await audioPlayer.play();
 
         // 2. ElevenLabs (Multilingual v2)
@@ -395,8 +355,7 @@
           const elevenKey = document.getElementById('elevenKey').value.trim();
           if (!elevenKey) throw new Error('ElevenLabsのAPIキーを入力してください');
 
-          // デフォルトの男性高品質ボイス（George: JBFqnCBsd6RMkjVDRZzb または Adam: pNInz6obpgDQGcFmaJgB）
-          const voiceId = "JBFqnCBsd6RMkjVDRZzb"; 
+          const voiceId = "JBFqnCBsd6RMkjVDRZzb"; // George (高品質ボイス)
 
           const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
             method: 'POST',
@@ -429,16 +388,15 @@
         // 3. ブラウザ標準音声 (Web Speech API)
         } else {
           const u = new SpeechSynthesisUtterance(text);
-          u.lang = langCode;
+          u.lang = rawLang;
           u.rate = rate;
           window.speechSynthesis.speak(u);
         }
 
       } catch (err) {
         showError(`【音声再生エラー】\n${err.message}\n\n※自動的に端末標準音声に切り替えます。`);
-        // フォールバック
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = langCode;
+        u.lang = rawLang;
         u.rate = rate;
         window.speechSynthesis.speak(u);
       } finally {
