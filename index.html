@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（モデル自動検出版）</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 3.7 Flash 対応 × 音声読み上げ</p>
 
     <div class="mb-4">
       <div class="flex justify-between items-center mb-1">
@@ -102,74 +102,62 @@
       const btn = document.getElementById('genBtn');
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="animate-spin">⏳</span> 利用可能モデルを確認中...';
+      btn.innerHTML = '<span class="animate-spin">⏳</span> 生成中...';
 
       const prompt = `あなたは第二言語習得論（CI: Comprehensible Input）の専門家です。
 学習者が日本語を介さず情景をイメージしながら直感的に理解できる文章を作成してください。
 
 【条件】
 1. 言語: ${targetLang}
-2. レベル: ${level}（平易で文脈から意味が推測できる単語・表現）
+2. レベル: ${level}（極めて平易で文脈から意味が推測できる単語・文構造）
 3. テーマ: ${topic}
 4. 出力ルール:
    - 全体で60〜100語程度の短いパラグラフ
    - 日本語の訳や解説、挨拶は一切書かず、ターゲット言語のテキストのみを出力してください`;
 
-      try {
-        // 1. まずAPIキーで利用可能なモデル一覧を直接取得する
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const listData = await listRes.json();
+      // 3.7-flash を最優先にし、順にフォールバック
+      const targetModels = [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.0-flash',
+        'gemini-2.0-flash'
+      ];
 
-        if (!listRes.ok || !listData.models) {
-          const errMsg = listData?.error?.message || 'APIキーの認証に失敗しました。';
-          const errStatus = listData?.error?.status || listRes.status;
-          throw new Error(`[${errStatus}] ${errMsg}`);
+      let isSuccess = false;
+      let lastErrorMessage = '';
+
+      for (const model of targetModels) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            document.getElementById('resultText').value = data.candidates[0].content.parts[0].text.trim();
+            document.getElementById('usedModelName').innerText = `使用モデル: ${model}`;
+            isSuccess = true;
+            break;
+          } else if (data.error) {
+            lastErrorMessage = data.error.message;
+          }
+        } catch (e) {
+          lastErrorMessage = e.message;
         }
-
-        // 2. generateContent に対応しているモデルを抽出
-        const validModels = listData.models.filter(m => 
-          m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
-        );
-
-        if (validModels.length === 0) {
-          throw new Error('お使いのアカウントで利用可能なテキスト生成モデルが見つかりませんでした。');
-        }
-
-        // flash系モデルを優先（なければ先頭のモデル）
-        let selectedModel = validModels.find(m => m.name.includes('flash')) || validModels[0];
-        
-        btn.innerHTML = '<span class="animate-spin">⏳</span> ストーリー生成中...';
-
-        // 3. 確実に存在するモデル名で呼び出す
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/${selectedModel.name}:generateContent?key=${apiKey}`;
-        const genRes = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
-        });
-
-        const genData = await genRes.json();
-
-        if (!genRes.ok) {
-          throw new Error(genData?.error?.message || '生成処理でエラーが発生しました。');
-        }
-
-        const generatedText = genData.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (generatedText) {
-          document.getElementById('resultText').value = generatedText.trim();
-          document.getElementById('usedModelName').innerText = `使用モデル: ${selectedModel.name.replace('models/', '')}`;
-        } else {
-          throw new Error('AIから空の応答が返されました。もう一度お試しください。');
-        }
-
-      } catch (err) {
-        showError(`【エラー詳細】\n${err.message}\n\n【確認事項】\n・APIキーが正しくコピーされているかご確認ください。\n・Google AI Studioで新しいAPIキーを再作成（Create API key in new project）して貼り付け直すと解決する場合があります。`);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>✨</span> AIストーリーを生成';
       }
+
+      if (!isSuccess) {
+        showError(`【エラー詳細】\n${lastErrorMessage || '通信に失敗しました。'}`);
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<span>✨</span> AIストーリーを生成';
     }
 
     function showError(msg) {
