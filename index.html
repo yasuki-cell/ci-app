@@ -82,9 +82,9 @@
 
     <!-- テーマ入力 & 生成ボタン -->
     <div class="mb-4">
-      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホームで待つ）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホームで待つ、静かな雨の街）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
       <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm">
-        <span>✨</span> ストーリー＆極上アニメイラストを生成
+        <span>✨</span> ストーリー＆情景イラストを生成
       </button>
     </div>
 
@@ -204,30 +204,41 @@
       if (lengthChoice === 'long') lengthPrompt = '全体で120〜150語程度のしっかりとしたパラグラフ';
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="animate-spin">⏳</span> 作画監督がシーン設計中...';
+      btn.innerHTML = '<span class="animate-spin">⏳</span> シーン設計中...';
 
-      const textPrompt = `あなたは「第二言語習得論の専門家」兼「一流の日本アニメ作画監督（Animation Director）」です。
+      // ストーリーの文脈に応じて登場人物の構成を柔軟に決めるプロンプト
+      const textPrompt = `あなたは「第二言語習得論の専門家」兼「一流のアニメーション映画の作画監督」です。
 
 【指示1: ストーリー作成】
 - 言語: ${targetLang}
 - レベル: ${level}
 - テーマ: ${topic}
 - ルール: ${lengthPrompt}。自然な日常描写のみ。
-- 【絶対禁止】ストーリー本文中に年齢（例: "I am 25 years old", "twenty-five years old" など）や自己紹介を一切書かないこと。
+- 【絶対禁止】ストーリー本文中に年齢（例: "I am 25 years old", "twenty-five years old" など）や定型自己紹介を一切書かないこと。
 
 【指示2: 作画監督プロンプト生成 (Animagine XL用タグ)】
-生成したストーリーの情景をAnimagine XL 3.1で完璧に映像化するためのDanbooruタグ列を作成してください。
-以下の要素を必ず含めてカンマ区切りの英語タグで出力してください:
-1. 主人公: 1boy, solo, 25yo adult handsome Japanese male, neat black short hair, expressive eyes, stylish casual clothes
-2. 動作・ポーズ: ストーリーと直結する具体的な身体動作タグ（例: holding cup, walking, looking at train, reading book）
-3. 背景・場所: どこにいるか一目でわかる美麗な日本の日常背景（例: inside modern cafe, counter, station platform, train tracks, sunny street）
-4. 演出・照明: 映画的な光の演出（例: anime screencap, cinematic lighting, sunlight, depth of field, vibrant colors）
-※禁止タグ: child, kid, chibi, sweat drops, sparkles, manga symbols, text, watermark
+作成したストーリーの内容を深く読み取り、その情景を最も的確に表すDanbooru形式の英語タグ列を作成してください。
+
+[登場人物・出演者の調整ルール]
+- ストーリーの文脈に合わせて出演人数と構成を柔軟に調整してください。
+  * 主人公単独のシーン: "1boy, solo, 25yo adult Japanese male, neat black short hair"
+  * 会話・注文・他者とのやりとりがあるシーン: 相手も含めて描写（例: "2boys" / "1boy, 1girl, barista" / "multiple people, crowd" など）
+  * 人物が登場しない情景・物・風景が主題のシーン: "no humans, scenery"
+  * 主人公以外の人物が主体のシーン: その人物に焦点を当てて描写
+- 25歳の男性主人公を描く場合は、大人の青年（adult male, 25yo）として描写すること。
+- ストーリーに子供の明示的な指定がない場合は、子供キャラクターを描かないこと。
+
+[タグの構成要件]
+1. 出演者タグ（例: "1boy, solo, 25yo..." または "1boy, 1girl, cashier" または "no humans, scenery"）
+2. 動作・ポーズ・表情タグ（ストーリーと直結する具体的な描写）
+3. 背景・場所タグ（どこにいるか一目でわかる美麗な背景）
+4. 演出・照明タグ（例: anime screencap, cinematic lighting, sunlight, depth of field）
+※禁止要素: child (ストーリー指定時除く), chibi, sweat drops, sparkles, manga symbols, text, watermark
 
 以下の形式（JSON）のみを出力してください:
 {
   "story": "ターゲット言語で書いた自然なストーリー本文",
-  "director_tags": "1boy, solo, 25yo adult handsome Japanese male, neat black short hair, (動作タグ), (背景タグ), (照明・アングルタグ)"
+  "director_tags": "出演者タグ, 動作タグ, 背景タグ, 演出照明タグ（カンマ区切り）"
 }`;
 
       const activeModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'];
@@ -252,7 +263,7 @@
           if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
             const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
             generatedStory = parsed.story;
-            directorTags = parsed.director_tags || `1boy, solo, 25yo adult handsome Japanese male, ${topic}`;
+            directorTags = parsed.director_tags || `anime screencap, ${topic}`;
             document.getElementById('resultText').value = generatedStory.trim();
             isSuccess = true;
             break;
@@ -267,7 +278,7 @@
       if (!isSuccess) {
         showError(`【接続エラー】\n${lastErrorMessage}`);
         btn.disabled = false;
-        btn.innerHTML = '<span>✨</span> ストーリー＆極上アニメイラストを生成';
+        btn.innerHTML = '<span>✨</span> ストーリー＆情景イラストを生成';
         return;
       }
 
@@ -275,7 +286,7 @@
       btn.innerHTML = '<span class="animate-spin">🎨</span> アニメ作画レンダリング中...';
 
       const fullPrompt = `masterpiece, newest, absurdres, highres, anime screencap, cinematic lighting, ${directorTags}`;
-      const negativePrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, child, kid, baby, chibi, sweat drops, manga symbols, sparkles, speech bubble, comic lines';
+      const negativePrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, chibi, sweat drops, manga symbols, sparkles, speech bubble, comic lines';
 
       try {
         if (hfToken) {
@@ -315,7 +326,7 @@
         imgContainer.classList.remove('hidden');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>✨</span> ストーリー＆極上アニメイラストを生成';
+        btn.innerHTML = '<span>✨</span> ストーリー＆情景イラストを生成';
       }
     }
 
@@ -325,7 +336,7 @@
       errorBox.classList.remove('hidden');
     }
 
-    // 音声再生（完全Blob化・CORS安全設計）
+    // 音声再生（Blob化・安全設計）
     async function speakText() {
       const text = document.getElementById('resultText').value.trim();
       if (!text) return alert('先にテキストを生成するか、文章を入力してください');
@@ -373,11 +384,9 @@
           const blob = await response.blob();
           await playBlobAudio(blob, rate);
 
-        // 2. Google 高音質音声 (安全なオーディオプロキシ経由でBlobロード)
+        // 2. Google 高音質音声
         } else if (engine === 'google_tts') {
           const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${langShort}&client=tw-ob`;
-          
-          // Audioオブジェクトで安全に再生
           activeAudio = new Audio(audioUrl);
           activeAudio.playbackRate = rate;
           await activeAudio.play();
