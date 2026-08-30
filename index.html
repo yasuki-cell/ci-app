@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini API（混雑自動回避対応）× 25歳男性情景イラスト</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × 高精細アニメ情景イラスト × 音声</p>
 
     <!-- APIキー入力 -->
     <div class="mb-4">
@@ -54,9 +54,9 @@
 
     <!-- テーマ入力 & 生成ボタン -->
     <div class="mb-4">
-      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="topic" type="text" placeholder="テーマ（例: カフェでコーヒーを注文、駅のホームで待つ）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
       <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm">
-        <span>✨</span> ストーリー＆イラストを生成
+        <span>✨</span> ストーリー＆美麗イラストを生成
       </button>
     </div>
 
@@ -65,8 +65,8 @@
 
     <!-- 生成されたイラスト画像 -->
     <div id="imageContainer" class="hidden mb-4">
-      <label class="block text-xs font-semibold text-slate-600 mb-1">情景イラスト:</label>
-      <div class="relative w-full aspect-[4/3] bg-amber-50/50 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
+      <label class="block text-xs font-semibold text-slate-600 mb-1">情景イメージ (Visual Context):</label>
+      <div class="relative w-full aspect-[4/3] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
         <img id="generatedImage" src="" alt="情景イラスト" class="w-full h-full object-cover">
       </div>
     </div>
@@ -160,12 +160,11 @@
    - 以下の形式（JSON）のみを出力してください:
 {
   "story": "ターゲット言語で書いたストーリー本文",
-  "action": "Describe what the 25-year-old adult male protagonist is specifically doing in 1 English sentence",
-  "place": "Clear recognizable physical location in 3-5 English words",
-  "has_child": false
+  "action": "Describe the 25-year-old adult handsome Japanese male protagonist specifically doing something in 1 clear English sentence",
+  "location": "Detailed modern aesthetic Japanese setting in 4-6 English words",
+  "mood": "Lighting and atmosphere (e.g., warm golden morning sunlight, pleasant cozy afternoon) in 3-5 English words"
 }`;
 
-      // 混雑時に順次フォールバックする最新モデルリスト
       const fallbackModels = [
         'gemini-3.6-flash',
         'gemini-3.7-flash',
@@ -176,8 +175,8 @@
       let lastErrorMessage = '';
       let generatedStory = '';
       let actionDesc = topic;
-      let placeDesc = 'everyday location';
-      let hasChild = false;
+      let locationDesc = 'everyday location';
+      let moodDesc = 'bright daytime light';
 
       for (const model of fallbackModels) {
         try {
@@ -198,8 +197,8 @@
             const parsed = JSON.parse(rawJson);
             generatedStory = parsed.story;
             actionDesc = parsed.action || topic;
-            placeDesc = parsed.place || 'everyday location';
-            hasChild = parsed.has_child === true || topic.includes('子供') || topic.includes('子ども');
+            locationDesc = parsed.location || 'modern Tokyo street';
+            moodDesc = parsed.mood || 'bright clear daylight';
 
             document.getElementById('resultText').value = generatedStory.trim();
             isSuccess = true;
@@ -213,26 +212,29 @@
       }
 
       if (!isSuccess) {
-        showError(`【混雑・接続エラー】\n${lastErrorMessage}\n\n※Googleのサーバーが一時的に混雑しています。1〜2分置いてから再度お試しください。`);
+        showError(`【接続エラー】\n${lastErrorMessage}`);
         btn.disabled = false;
-        btn.innerHTML = '<span>✨</span> ストーリー＆イラストを生成';
+        btn.innerHTML = '<span>✨</span> ストーリー＆美麗イラストを生成';
         return;
       }
 
-      // 画像生成
-      btn.innerHTML = '<span class="animate-spin">🎨</span> イラスト作成中...';
+      // 高品質アニメ画像生成 (FLUXエンジン指定)
+      btn.innerHTML = '<span class="animate-spin">🎨</span> 美麗イラスト作成中...';
 
-      const childConstraint = hasChild ? '' : 'NO children, NO toddlers, adult protagonist only,';
-      const imagePrompt = `Modern Japanese anime illustration style. A friendly 25-year-old young adult East Asian man with neat short dark hair, expressive open eyes, performing ${actionDesc} in a clearly recognizable ${placeDesc}. Clean black outlines, bright vibrant solid colors, clear cel-shading, high contrast. STRICT NEGATIVES: ${childConstraint} NO text, NO speech bubbles, NO manga symbols, NO sparkles, NO sweat drops, NO speed lines, NO pastel tones.`;
-      
+      const imagePrompt = `masterpiece, best quality, ultra-detailed anime visual, modern Japanese anime movie aesthetic, Makoto Shinkai and Kyoto Animation inspired style, highly refined clean lineart.
+Protagonist: A handsome, clean-cut 25-year-old young adult Japanese man (adult male, NOT a child) with neat stylish dark hair, clear expressive eyes, wearing modern clean casual attire, naturally performing ${actionDesc}.
+Setting: Highly detailed, aesthetically pleasing modern Japanese background of ${locationDesc}. Beautiful cinematic lighting, ${moodDesc}, gorgeous color palette, crisp depth of field.
+Negative Constraints: low quality, blurry, ugly, bad anatomy, deformed, child, kid, chibi, sweat drops, manga symbols, sparkles, text, watermark, speech bubbles.`;
+
       const seed = Math.floor(Math.random() * 100000);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=450&nologo=true&seed=${seed}`;
+      // 高性能FLUXエンジンを指定して描画
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
       
       imgElem.src = imageUrl;
       imgContainer.classList.remove('hidden');
 
       btn.disabled = false;
-      btn.innerHTML = '<span>✨</span> ストーリー＆イラストを生成';
+      btn.innerHTML = '<span>✨</span> ストーリー＆美麗イラストを生成';
     }
 
     function showError(msg) {
