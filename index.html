@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × 25歳男性主人公（子供除外）× 音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini API × 情景イラスト × 音声再生</p>
 
     <div class="mb-4">
       <div class="flex justify-between items-center mb-1">
@@ -51,7 +51,7 @@
     </div>
 
     <div class="mb-4">
-      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホームで電車を待つ）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
       <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2 shadow-sm">
         <span>✨</span> ストーリー＆イラストを生成
       </button>
@@ -62,7 +62,7 @@
     <div id="imageContainer" class="hidden mb-4">
       <label class="block text-xs font-semibold text-slate-600 mb-1">情景イラスト:</label>
       <div class="relative w-full aspect-[4/3] bg-amber-50/50 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
-        <img id="generatedImage" src="" alt="25歳男性の情景イラスト" class="w-full h-full object-cover">
+        <img id="generatedImage" src="" alt="情景イラスト" class="w-full h-full object-cover">
       </div>
     </div>
 
@@ -132,46 +132,36 @@
       const topic = document.getElementById('topic').value.trim() || '日常の出来事';
       const btn = document.getElementById('genBtn');
 
-      let lengthPrompt = '';
-      if (lengthChoice === 'short') {
-        lengthPrompt = '全体で30〜50語程度（2〜3文）の非常に短いパラグラフ';
-      } else if (lengthChoice === 'long') {
-        lengthPrompt = '全体で120〜150語程度のしっかりとしたパラグラフ';
-      } else {
-        lengthPrompt = '全体で60〜100語程度の標準的なパラグラフ';
-      }
+      let lengthPrompt = '全体で60〜100語程度の標準的なパラグラフ';
+      if (lengthChoice === 'short') lengthPrompt = '全体で30〜50語程度（2〜3文）の非常に短いパラグラフ';
+      if (lengthChoice === 'long') lengthPrompt = '全体で120〜150語程度のしっかりとしたパラグラフ';
 
       btn.disabled = true;
       btn.innerHTML = '<span class="animate-spin">⏳</span> ストーリー生成中...';
 
-      // 1. 本文生成 & 画像用要素抽出（25歳男性固定、子供除外ルールを反映）
       const textPrompt = `あなたは第二言語習得論（CI: Comprehensible Input）の専門家です。
-学習者が日本語を介さず情景をイメージしながら直感的に理解できる文章を作成してください。
 主人公は必ず25歳の若い大人の男性（自分）の日常視点として描写してください。
 
 【条件】
 1. 言語: ${targetLang}
-2. レベル: ${level}（極めて平易で文脈から意味が推測できる単語・文構造）
+2. レベル: ${level}
 3. テーマ: ${topic}
-4. 出力ルール:
-   - ${lengthPrompt}
-   - 日本語の訳や解説、挨拶は不要
-   - 以下の形式（JSON）で出力してください:
+4. ルール: ${lengthPrompt}、日本語の解説は書かないこと。
+
+以下の形式のJSONのみを出力してください:
 {
-  "story": "ターゲット言語で書いたストーリー本文",
-  "character_action": "Describe what the 25-year-old adult male protagonist is specifically doing in the scene with his natural facial expression in 1 concise English sentence",
-  "detailed_location": "Clear recognizable physical location (e.g., cozy modern cafe counter, bright commuter train station platform, neat bookstore aisle) in 4-8 English words",
-  "has_child": false
+  "story": "ターゲット言語の文章",
+  "action": "Describe what the 25-year-old male protagonist is doing in 1 English sentence",
+  "place": "Recognizable everyday setting in 3-5 English words"
 }`;
 
       let generatedStory = '';
-      let characterAction = '';
-      let detailedLocation = '';
-      let hasChild = false;
+      let actionDesc = '';
+      let placeDesc = '';
 
       try {
-        const textEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-        const textRes = await fetch(textEndpoint, {
+        // テキスト生成
+        const textRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -182,53 +172,61 @@
 
         const textData = await textRes.json();
 
-        if (textRes.ok && textData.candidates?.[0]?.content?.parts?.[0]?.text) {
-          const parsed = JSON.parse(textData.candidates[0].content.parts[0].text);
-          generatedStory = parsed.story;
-          characterAction = parsed.character_action || `A 25-year-old young adult man doing ${topic}`;
-          detailedLocation = parsed.detailed_location || 'a clearly recognizable everyday Japanese scene';
-          hasChild = parsed.has_child === true || topic.includes('子供') || topic.includes('子ども') || topic.includes('child');
-          document.getElementById('resultText').value = generatedStory.trim();
-        } else if (textData.error) {
-          throw new Error(`[テキスト生成エラー] ${textData.error.message}`);
-        } else {
-          throw new Error('AIからテキストを受け取れませんでした。');
+        if (!textRes.ok) {
+          throw new Error(textData.error?.message || 'Gemini APIの通信エラーです。');
         }
 
-        // 2. 25歳男性が必ず主人公・子供厳禁・漫画記号禁止の情景イラスト生成
-        btn.innerHTML = '<span class="animate-spin">🎨</span> 情景イラスト作成中...';
-        
-        const childConstraint = hasChild ? '' : 'NO children, NO toddlers, NO babies, NO kids, NO juvenile characters,';
-        
-        const imagePrompt = `Modern Japanese anime illustration style. High clarity, heartwarming and bright everyday atmosphere.
-Main Character: MUST depict a friendly 25-year-old young adult East Asian man (young adult male, NOT a child) with neat short dark hair, expressive open eyes, dressed in neat modern casual adult clothes. He is clearly centered performing the action: ${characterAction}.
-Setting & Background: A clearly recognizable, obvious physical location of ${detailedLocation}. The environment is unmistakable at first glance.
-Art Style: Clean crisp dark outlines, solid vibrant colors, clear natural lighting, clean cel-shading.
-STRICT NEGATIVE RESTRICTIONS: ${childConstraint} NO sweat drops, NO sparkles, NO emotion icons, NO speed lines, NO manga symbols, NO text, NO speech bubbles, NO chibi deformation, NO pastel tones.`;
-        
-        try {
-          const imgEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-          const imgRes = await fetch(imgEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              instances: [{ prompt: imagePrompt }],
-              parameters: {
-                sampleCount: 1,
-                aspectRatio: '4:3'
-              }
-            })
-          });
+        const rawJson = textData.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parsed = JSON.parse(rawJson);
+        generatedStory = parsed.story;
+        actionDesc = parsed.action || topic;
+        placeDesc = parsed.place || 'everyday location';
 
-          const imgData = await imgRes.json();
+        document.getElementById('resultText').value = generatedStory.trim();
 
-          if (imgRes.ok && imgData.predictions?.[0]?.bytesBase64Encoded) {
-            imgElem.src = `data:image/png;base64,${imgData.predictions[0].bytesBase64Encoded}`;
-            imgContainer.classList.remove('hidden');
-          } else {
-            const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=450&nologo=true&seed=${Math.floor(Math.random()*10000)}`;
-            imgElem.src = fallbackUrl;
-            imgContainer.classList.remove('hidden');
-          }
-        } catch (imgErr) {
-          const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent('Japanese anime illustration of a 25-year-old adult man ' + characterAction + ' in ' + detailedLocation + ', clear recognizable background, adult character, no children, no sweat marks, no sparkles')}?width=600&height=450&nologo
+        // 画像生成
+        btn.innerHTML = '<span class="animate-spin">🎨</span> イラスト作成中...';
+
+        const imagePrompt = `Japanese anime style illustration. A friendly 25-year-old young adult East Asian man (NO children, adult male) performing ${actionDesc} in a clearly recognizable ${placeDesc}. Clean black outlines, bright vibrant colors, natural daylight. NO text, NO speech bubbles, NO manga symbols, NO sparkles, NO sweat drops.`;
+        
+        // 高速・安定な描画エンドポイントを利用
+        const seed = Math.floor(Math.random() * 100000);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=600&height=450&nologo=true&seed=${seed}`;
+        
+        imgElem.src = imageUrl;
+        imgContainer.classList.remove('hidden');
+
+      } catch (err) {
+        showError(`【エラー詳細】\n${err.message}\n\n※APIキーの利用制限や残高不足の可能性があります。Google AI Studioで新しいキーを作成して貼り直してみてください。`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✨</span> ストーリー＆イラストを生成';
+      }
+    }
+
+    function showError(msg) {
+      const errorBox = document.getElementById('errorBox');
+      errorBox.innerText = msg;
+      errorBox.classList.remove('hidden');
+    }
+
+    function speakText() {
+      const text = document.getElementById('resultText').value.trim();
+      if (!text) return alert('先にテキストを生成するか、文章を入力してください');
+      
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = document.getElementById('lang').value;
+      
+      const rateElem = document.getElementById('speechRate');
+      u.rate = rateElem ? parseFloat(rateElem.value) : 1.0;
+      
+      window.speechSynthesis.speak(u);
+    }
+
+    function stopSpeech() {
+      window.speechSynthesis.cancel();
+    }
+  </script>
+</body>
+</html>
