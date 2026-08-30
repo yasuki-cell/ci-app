@@ -27,21 +27,34 @@
         ⚙️ APIキー・サーバー設定
       </summary>
       <div class="space-y-3 mt-3 pt-2 border-t border-slate-200">
+        <!-- Gemini (伏せ字 & 表示切替) -->
         <div>
           <label class="block font-semibold mb-1 text-slate-600">1. Gemini API Key (必須):</label>
-          <input id="apiKey" type="text" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <div class="relative flex items-center">
+            <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 pr-10 text-xs bg-white font-mono">
+            <button type="button" onclick="toggleVisibility('apiKey')" class="absolute right-2 text-slate-400 hover:text-slate-600 p-1 text-xs">👁</button>
+          </div>
         </div>
+        <!-- Grok -->
         <div>
           <label class="block font-semibold mb-1 text-slate-600">2. Grok (xAI) API Key (画像生成・任意):</label>
-          <input id="xaiKey" type="password" placeholder="xai-..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <div class="relative flex items-center">
+            <input id="xaiKey" type="password" placeholder="xai-..." class="w-full border border-slate-300 rounded p-2 pr-10 text-xs bg-white font-mono">
+            <button type="button" onclick="toggleVisibility('xaiKey')" class="absolute right-2 text-slate-400 hover:text-slate-600 p-1 text-xs">👁</button>
+          </div>
         </div>
+        <!-- TTS Server -->
         <div>
           <label class="block font-semibold mb-1 text-slate-600">3. Google TTS サーバーURL (任意):</label>
           <input id="gFuncUrl" type="url" placeholder="https://...cloudfunctions.net/tts" class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
         </div>
+        <!-- ElevenLabs -->
         <div>
           <label class="block font-semibold mb-1 text-slate-600">4. ElevenLabs API Key (米国肉声音声・任意):</label>
-          <input id="elevenKey" type="password" placeholder="sk_..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <div class="relative flex items-center">
+            <input id="elevenKey" type="password" placeholder="sk_..." class="w-full border border-slate-300 rounded p-2 pr-10 text-xs bg-white font-mono">
+            <button type="button" onclick="toggleVisibility('elevenKey')" class="absolute right-2 text-slate-400 hover:text-slate-600 p-1 text-xs">👁</button>
+          </div>
         </div>
       </div>
     </details>
@@ -175,6 +188,16 @@
   <script>
     let currentAudio = null;
 
+    // パスワード・伏せ字切り替え
+    function toggleVisibility(id) {
+      const input = document.getElementById(id);
+      if (input.type === 'password') {
+        input.type = 'text';
+      } else {
+        input.type = 'password';
+      }
+    }
+
     window.addEventListener('load', () => {
       const load = (id, key) => {
         const val = localStorage.getItem(key);
@@ -261,7 +284,6 @@
       let isSuccess = false;
       let lastErr = '';
 
-      // 提供中の最新モデル
       const candidateModels = [
         'gemini-3.6-flash',
         'gemini-3.7-flash',
