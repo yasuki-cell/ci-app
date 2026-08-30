@@ -9,19 +9,17 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（エラー修正版）</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（モデル自動対応版）</p>
 
-    <!-- APIキー入力 -->
     <div class="mb-4">
       <div class="flex justify-between items-center mb-1">
         <label class="text-xs font-semibold text-slate-600">Gemini API Key:</label>
         <span id="keySavedStatus" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済み</span>
       </div>
       <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <p class="text-[10px] text-slate-400 mt-1">※キーはスマホのブラウザ内にのみ安全に一時保存されます</p>
+      <p class="text-[10px] text-slate-400 mt-1">※キーは端末内にのみ安全に一時保存されます</p>
     </div>
 
-    <!-- 設定 -->
     <div class="grid grid-cols-2 gap-2 mb-4">
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">学習言語:</label>
@@ -44,7 +42,6 @@
       </div>
     </div>
 
-    <!-- テーマ入力 & 生成ボタン -->
     <div class="mb-4">
       <input id="topic" type="text" placeholder="テーマ（例: 朝のコーヒー、公園の散歩）" class="w-full border border-slate-300 rounded-lg p-2 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
       <button onclick="generateContent()" id="genBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2">
@@ -52,16 +49,13 @@
       </button>
     </div>
 
-    <!-- エラー表示エリア（初期非表示） -->
-    <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 leading-relaxed break-words"></div>
+    <div id="errorBox" class="hidden mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 leading-relaxed break-words whitespace-pre-wrap"></div>
 
-    <!-- 結果テキスト -->
     <div class="mb-3">
       <label class="block text-xs font-semibold text-slate-600 mb-1">生成されたストーリー:</label>
       <textarea id="resultText" rows="5" class="w-full border border-slate-300 rounded-lg p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans" placeholder="ここにストーリーが表示されます..."></textarea>
     </div>
 
-    <!-- 音声再生ボタン -->
     <div class="flex gap-2">
       <button onclick="speakText()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1">
         <span>▶</span> 音声再生 (シャドーイング)
@@ -73,7 +67,6 @@
   </div>
 
   <script>
-    // 起動時にローカルストレージからAPIキーを復元
     window.addEventListener('DOMContentLoaded', () => {
       const savedKey = localStorage.getItem('ci_gemini_key');
       if (savedKey) {
@@ -87,8 +80,7 @@
       errorBox.classList.add('hidden');
       errorBox.innerText = '';
 
-      let rawKey = document.getElementById('apiKey').value;
-      // 前後の空白や改行を自動削除
+      const rawKey = document.getElementById('apiKey').value;
       const apiKey = rawKey.trim();
 
       if (!apiKey) {
@@ -96,7 +88,6 @@
         return;
       }
 
-      // APIキーをローカルに保存
       localStorage.setItem('ci_gemini_key', apiKey);
       document.getElementById('keySavedStatus').classList.remove('hidden');
 
@@ -120,43 +111,72 @@
    - 全体で60〜100語程度の短いパラグラフ
    - 日本語の訳や解説、挨拶は一切書かず、ターゲット言語のテキストのみを出力してください`;
 
-      // 安定性の高いモデルリスト（順に試行）
-      const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
-      let isSuccess = false;
+      // 優先的に試す候補モデルリスト
+      const candidateModels = [
+        'gemini-2.0-flash',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-flash-latest',
+        'gemini-pro'
+      ];
 
-      for (const model of models) {
+      let isSuccess = false;
+      let lastErrorMessage = '';
+
+      // 1. 候補モデルを順に呼び出し
+      for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const response = await fetch(endpoint, {
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
           });
 
-          const data = await response.json();
-
-          if (!response.ok) {
-            // エラー応答の場合
-            const msg = data?.error?.message || 'API通信エラー';
-            const status = data?.error?.status || response.status;
-            throw new Error(`[${status}] ${msg}`);
-          }
-
-          if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+          const data = await res.json();
+          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
             document.getElementById('resultText').value = data.candidates[0].content.parts[0].text.trim();
             isSuccess = true;
-            break; // 成功したためループを抜ける
-          } else {
-            throw new Error('テキストを生成できませんでした。プロンプトまたは設定を確認してください。');
+            break;
+          } else if (data.error) {
+            lastErrorMessage = data.error.message || '';
           }
-        } catch (err) {
-          if (model === models[models.length - 1]) {
-            // 全モデル失敗時にエラー表示
-            showError(`【エラー詳細】\n${err.message}\n\n※キーが間違っているか、Google AI Studio側で有効化されていない可能性があります。`);
-          }
+        } catch (e) {
+          lastErrorMessage = e.message;
         }
+      }
+
+      // 2. 候補がすべて外れた場合、利用可能なモデル一覧（ListModels）を自動取得して再試行
+      if (!isSuccess) {
+        try {
+          const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+          const listData = await listRes.json();
+          
+          if (listRes.ok && listData.models) {
+            const usableModel = listData.models.find(m => 
+              m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
+            );
+
+            if (usableModel) {
+              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${usableModel.name}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+              });
+              const data = await res.json();
+              if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                document.getElementById('resultText').value = data.candidates[0].content.parts[0].text.trim();
+                isSuccess = true;
+              }
+            }
+          }
+        } catch (e) {
+          // 自動取得も失敗した場合は下記エラーへ
+        }
+      }
+
+      if (!isSuccess) {
+        showError(`【エラーが発生しました】\n${lastErrorMessage || '利用可能なモデルが見つかりませんでした。'}\n\n【確認事項】\n1. APIキーがGoogle AI Studioで有効になっているか確認してください。\n2. コピー時に文字が欠けていないか確認してください。`);
       }
 
       btn.disabled = false;
