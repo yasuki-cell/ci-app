@@ -29,7 +29,8 @@
       <div class="space-y-3 mt-3 pt-2 border-t border-slate-200">
         <div>
           <label class="block font-semibold mb-1 text-slate-600">1. Gemini API Key (必須):</label>
-          <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <input id="apiKey" type="text" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <p class="text-[10px] text-slate-400 mt-0.5">※aistudio.google.com で作成したキーを入力</p>
         </div>
         <div>
           <label class="block font-semibold mb-1 text-slate-600">2. Grok (xAI) API Key (画像生成・任意):</label>
@@ -203,11 +204,12 @@
     async function runGenerate() {
       const btn = document.getElementById('genBtn');
       
-      // 空白・改行・引用符を完全に除去
-      let apiKey = document.getElementById('apiKey').value.replace(/[\s\r\n"']/g, '');
-      let xaiKey = document.getElementById('xaiKey').value.replace(/[\s\r\n"']/g, '');
-      let gFuncUrl = document.getElementById('gFuncUrl').value.trim();
-      let elevenKey = document.getElementById('elevenKey').value.replace(/[\s\r\n"']/g, '');
+      // 改行・空白・特殊文字を完全除去
+      let rawKey = document.getElementById('apiKey').value || '';
+      let apiKey = rawKey.trim().replace(/[\s\r\n"'`]/g, '');
+      let xaiKey = (document.getElementById('xaiKey').value || '').trim().replace(/[\s\r\n"'`]/g, '');
+      let gFuncUrl = (document.getElementById('gFuncUrl').value || '').trim();
+      let elevenKey = (document.getElementById('elevenKey').value || '').trim().replace(/[\s\r\n"'`]/g, '');
 
       if (!apiKey) {
         showMsg('【エラー】Gemini APIキーを入力してください（⚙️ 設定欄）。', true);
@@ -242,12 +244,8 @@
 - 長さ: ${lengthDesc}
 - 【禁止】本文中に年齢（例: "I am 25..."）や定型自己紹介を書かないこと。自然な日常ストーリーのみ。
 
-【指示2: 4つのシーン作画プロンプト作成 (Image Generation用)】
+【指示2: 4つのシーン作画プロンプト作成】
 ストーリーの最初から最後までを起承転結の4つの連続した情景（Scene 1〜4）に分割し、美麗な日本アニメ調イラストを生成するための詳細な英語プロンプトと、短い日本語説明を作成してください。
-
-[作画ルール]
-- スタイル: Beautiful modern Japanese anime style, cinematic lighting, ultra-detailed
-- 出演者: ストーリーの文脈に合わせて柔軟に調整（1人、複数人、人物なし scenery など）。男性主人公を描く時は25歳大人の男性。
 
 必ず以下のJSON形式のみで出力してください:
 {
@@ -265,26 +263,26 @@
       let isSuccess = false;
       let lastErr = '';
 
-      // 現行モデル群（確実に稼働するものを順次フォールバック）
+      // 現行モデル群（確実に接続可能な公式モデル）
       const candidateModels = [
         'gemini-2.5-flash',
-        'gemini-2.0-flash',
         'gemini-1.5-flash',
-        'gemini-3.6-flash'
+        'gemini-2.0-flash'
       ];
 
       for (const model of candidateModels) {
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           
-          // ヘッダーは Content-Type のみ（x-goog-api-key との競合を回避）
-          const res = await fetch(endpoint, {
+          const res = await fetch(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
+              contents: [{
+                parts: [{ text: prompt }]
+              }],
               generationConfig: {
                 responseMimeType: "application/json"
               }
@@ -308,7 +306,7 @@
             isSuccess = true;
             break;
           } else if (data.error) {
-            lastErr = `[${model}] ${data.error.message}`;
+            lastErr = `[${model}] ${data.error.message || JSON.stringify(data.error)}`;
           }
         } catch (netErr) {
           lastErr = `[${model}] ${netErr.message}`;
@@ -316,7 +314,7 @@
       }
 
       if (!isSuccess) {
-        showMsg(`【文章生成エラー】\n${lastErr}\n\n※APIキー（AIzaSy...）を再確認してください。`, true);
+        showMsg(`【文章生成エラー】\n${lastErr}\n\n※aistudio.google.com で作成した有効なAPIキー（AIzaSy...）をご確認ください。`, true);
         btn.disabled = false;
         btn.innerText = '✨ 4シーン連動ストーリー＆イラスト生成';
         return;
