@@ -15,7 +15,7 @@
     <!-- ヘッダー -->
     <div>
       <h1 class="text-lg font-bold text-slate-900">🌱 CI 言語学習アプリ</h1>
-      <p class="text-xs text-slate-500">ストーリー・高精細イラスト・ネイティブ音声</p>
+      <p class="text-xs text-slate-500">4シーン連動イラスト × ストーリー × 米国肉声</p>
     </div>
 
     <!-- エラー・通知表示 -->
@@ -71,35 +71,70 @@
       <div>
         <label class="block font-semibold text-slate-600 mb-1">長さ</label>
         <select id="length" class="w-full border border-slate-300 rounded p-1.5 bg-slate-50">
-          <option value="short">短め (30〜50語)</option>
-          <option value="medium" selected>標準 (60〜100語)</option>
-          <option value="long">長め (120〜150語)</option>
+          <option value="short">短め (4文構成)</option>
+          <option value="medium" selected>標準 (6〜8文構成)</option>
+          <option value="long">長め (10〜12文構成)</option>
         </select>
       </div>
     </div>
 
     <!-- テーマ入力 & 生成ボタン -->
     <div class="space-y-2">
-      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム、雨の街）" class="w-full border border-slate-300 rounded p-2 text-xs">
+      <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム、雨の日の出来事）" class="w-full border border-slate-300 rounded p-2 text-xs">
       <button id="genBtn" onclick="runGenerate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-xs transition shadow">
-        ✨ ストーリー＆高画質イラストを生成
+        ✨ 4シーン連動ストーリー＆イラストを生成
       </button>
     </div>
 
-    <!-- イラスト表示（高解像度対応） -->
-    <div id="imgWrap" class="hidden space-y-1">
+    <!-- 4シーン イラストギャラリー（2x2グリッド） -->
+    <div id="imgWrap" class="hidden space-y-2">
       <div class="flex justify-between items-center">
-        <span class="text-xs font-semibold text-slate-600">作画カット (1024×768 HD):</span>
-        <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">High Clarity</span>
+        <span class="text-xs font-semibold text-slate-700">ストーリー絵巻 (4 Scenes):</span>
+        <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">4-Cut Storyboard</span>
       </div>
-      <div class="w-full aspect-[4/3] bg-slate-950 rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-        <img id="storyImg" src="" alt="情景イラスト" class="w-full h-full object-cover">
+      
+      <div class="grid grid-cols-2 gap-2">
+        <!-- Scene 1 -->
+        <div class="space-y-1">
+          <div class="w-full aspect-[4/3] bg-slate-950 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative">
+            <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">1. 発端</span>
+            <img id="sceneImg1" src="" alt="Scene 1" class="w-full h-full object-cover">
+          </div>
+          <p id="caption1" class="text-[10px] text-slate-500 line-clamp-1"></p>
+        </div>
+
+        <!-- Scene 2 -->
+        <div class="space-y-1">
+          <div class="w-full aspect-[4/3] bg-slate-950 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative">
+            <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">2. 展開</span>
+            <img id="sceneImg2" src="" alt="Scene 2" class="w-full h-full object-cover">
+          </div>
+          <p id="caption2" class="text-[10px] text-slate-500 line-clamp-1"></p>
+        </div>
+
+        <!-- Scene 3 -->
+        <div class="space-y-1">
+          <div class="w-full aspect-[4/3] bg-slate-950 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative">
+            <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">3. クライマックス</span>
+            <img id="sceneImg3" src="" alt="Scene 3" class="w-full h-full object-cover">
+          </div>
+          <p id="caption3" class="text-[10px] text-slate-500 line-clamp-1"></p>
+        </div>
+
+        <!-- Scene 4 -->
+        <div class="space-y-1">
+          <div class="w-full aspect-[4/3] bg-slate-950 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative">
+            <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">4. 結末</span>
+            <img id="sceneImg4" src="" alt="Scene 4" class="w-full h-full object-cover">
+          </div>
+          <p id="caption4" class="text-[10px] text-slate-500 line-clamp-1"></p>
+        </div>
       </div>
     </div>
 
     <!-- ストーリー表示 -->
     <div class="space-y-1">
-      <span class="text-xs font-semibold text-slate-600">生成ストーリー:</span>
+      <span class="text-xs font-semibold text-slate-600">生成ストーリー全文:</span>
       <textarea id="storyText" rows="4" class="w-full border border-slate-300 rounded p-2.5 text-xs leading-relaxed" placeholder="ここにストーリーが表示されます..."></textarea>
     </div>
 
@@ -164,7 +199,7 @@
       box.classList.remove('hidden');
     }
 
-    // ストーリー＆高画質イラスト生成
+    // ストーリー＆4シーン連動イラスト生成
     async function runGenerate() {
       const btn = document.getElementById('genBtn');
       const apiKey = document.getElementById('apiKey').value.trim();
@@ -188,34 +223,44 @@
       const lengthChoice = document.getElementById('length').value;
       const topic = document.getElementById('topic').value.trim() || '日常の出来事';
 
-      let lengthDesc = '60〜100語のパラグラフ';
-      if (lengthChoice === 'short') lengthDesc = '30〜50語（2〜3文）の短いパラグラフ';
-      if (lengthChoice === 'long') lengthDesc = '120〜150語のしっかりとしたパラグラフ';
+      let lengthDesc = '6〜8文の自然なパラグラフ';
+      if (lengthChoice === 'short') lengthDesc = '4文構成の短いパラグラフ';
+      if (lengthChoice === 'long') lengthDesc = '10〜12文構成のしっかりとしたパラグラフ';
 
       btn.disabled = true;
-      btn.innerText = '⏳ 生成中...';
-      showMsg('Gemini でストーリー作成中...');
+      btn.innerText = '⏳ 4シーン設計中...';
+      showMsg('Gemini でストーリー＆4シーンの絵コンテ作成中...');
 
-      const prompt = `あなたは「第二言語習得論の専門家」兼「一流アニメの作画監督」です。
+      const prompt = `あなたは「第二言語習得論の専門家」兼「一流アニメーション映画の作画監督」です。
 
-【ストーリー作成】
+【指示1: ストーリー作成】
 - 言語: ${targetLang}
 - レベル: ${level}
 - テーマ: ${topic}
 - 長さ: ${lengthDesc}
-- 【禁止】本文中に年齢（例: "I am 25..."）や自己紹介を書かないこと。自然な日常描写のみ。
+- 【禁止】本文中に年齢（例: "I am 25..."）や定型自己紹介を書かないこと。自然な日常ストーリーのみ。
 
-【作画監督タグ作成 (Animagine XL用Danbooruタグ)】
-ストーリーの情景に合わせ、高精細でクリアに描写するための適切なタグを作成してください:
-- 出演者: 文脈に合わせて調整（1人、複数人、または人物なし "no humans, scenery" など）。男性主人公を描く時は25歳大人の男性。
-- 動作・背景・照明・アングルタグを含める。
+【指示2: 4つのシーン絵コンテタグ作成 (Animagine XL用Danbooruタグ)】
+ストーリーの最初から最後までを起承転結の4つの連続した情景（Scene 1〜4）に分割し、それぞれの情景を映像化するためのDanbooru英語タグ列と短い日本語説明を作成してください。
+
+[作画ルール]
+- 出演者: ストーリーの文脈に合わせて柔軟に調整（1人、複数人、人物なし "no humans, scenery" など）。男性主人公を描く時は25歳大人の男性（1boy, solo, 25yo adult Japanese male, neat black short hair）。
+- 動作・背景・照明タグを含める。
 - 禁止タグ: chibi, sweat drops, manga symbols, text
 
 出力形式（JSONのみ）:
-{"story":"ストーリー本文","director_tags":"英語タグ列"}`;
+{
+  "story": "ストーリー本文全文",
+  "scenes": [
+    { "caption": "Scene 1の日本語状況説明", "tags": "scene 1用のDanbooru英語タグ列" },
+    { "caption": "Scene 2の日本語状況説明", "tags": "scene 2用のDanbooru英語タグ列" },
+    { "caption": "Scene 3の日本語状況説明", "tags": "scene 3用のDanbooru英語タグ列" },
+    { "caption": "Scene 4の日本語状況説明", "tags": "scene 4用のDanbooru英語タグ列" }
+  ]
+}`;
 
       let story = '';
-      let tags = topic;
+      let scenes = [];
       let isSuccess = false;
       let lastErr = '';
 
@@ -241,9 +286,15 @@
             try {
               const parsed = JSON.parse(raw);
               story = parsed.story;
-              tags = parsed.director_tags || topic;
+              scenes = parsed.scenes || [];
             } catch {
               story = raw;
+              scenes = [
+                { caption: "シーン 1", tags: topic },
+                { caption: "シーン 2", tags: topic },
+                { caption: "シーン 3", tags: topic },
+                { caption: "シーン 4", tags: topic }
+              ];
             }
 
             document.getElementById('storyText').value = story.trim();
@@ -260,57 +311,58 @@
       if (!isSuccess) {
         showMsg(`【エラー】文章生成に失敗しました。\n${lastErr}`, true);
         btn.disabled = false;
-        btn.innerText = '✨ ストーリー＆高画質イラストを生成';
+        btn.innerText = '✨ 4シーン連動ストーリー＆イラストを生成';
         return;
       }
 
-      showMsg('高解像度イラスト（1024×768 HD）を描画中...');
+      showMsg('4枚のシーンイラストを高画質レンダリング中...');
+      document.getElementById('imgWrap').classList.remove('hidden');
 
-      // 高解像度・極上クオリティ用プロンプト強化
-      const fullPrompt = `masterpiece, newest, absurdres, highres, ultra-detailed, 8k wallpaper, sharp focus, extremely detailed eyes and face, anime screencap, cinematic lighting, ray tracing, volumetric lighting, ${tags}`;
+      // 4枚の画像を並列生成
+      const qualityPrefix = "masterpiece, newest, absurdres, highres, ultra-detailed, sharp focus, extremely detailed eyes and face, anime screencap, cinematic lighting, ";
       const negPrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, cropped, worst quality, low quality, normal quality, blurry, jpeg artifacts, signature, watermark, username, artist name, chibi, manga symbols';
-      
-      const imgElem = document.getElementById('storyImg');
-      const imgWrap = document.getElementById('imgWrap');
 
-      // 1024x768 (高解像度 4:3)
-      const targetWidth = 1024;
-      const targetHeight = 768;
+      const renderPromises = scenes.slice(0, 4).map(async (scene, index) => {
+        const imgElem = document.getElementById(`sceneImg${index + 1}`);
+        const capElem = document.getElementById(`caption${index + 1}`);
+        capElem.innerText = scene.caption || `Scene ${index + 1}`;
 
-      if (hfToken) {
-        try {
-          const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              inputs: fullPrompt,
-              parameters: { 
-                negative_prompt: negPrompt, 
-                width: targetWidth, 
-                height: targetHeight,
-                guidance_scale: 7.5,
-                num_inference_steps: 32
-              }
-            })
-          });
-          if (!hfRes.ok) throw new Error('HFエラー');
-          const blob = await hfRes.blob();
-          imgElem.src = URL.createObjectURL(blob);
-          imgWrap.classList.remove('hidden');
-        } catch {
-          const seed = Math.floor(Math.random() * 100000);
-          imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=${targetWidth}&height=${targetHeight}&model=flux&enhance=true&seed=${seed}`;
-          imgWrap.classList.remove('hidden');
+        const fullPrompt = qualityPrefix + (scene.tags || topic);
+
+        if (hfToken) {
+          try {
+            const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                inputs: fullPrompt,
+                parameters: { 
+                  negative_prompt: negPrompt, 
+                  width: 1024, 
+                  height: 768,
+                  guidance_scale: 7.5,
+                  num_inference_steps: 32
+                }
+              })
+            });
+            if (!hfRes.ok) throw new Error('HF');
+            const blob = await hfRes.blob();
+            imgElem.src = URL.createObjectURL(blob);
+          } catch {
+            const seed = Math.floor(Math.random() * 100000) + index;
+            imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=1024&height=768&model=flux&enhance=true&seed=${seed}`;
+          }
+        } else {
+          const seed = Math.floor(Math.random() * 100000) + index;
+          imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=1024&height=768&model=flux&enhance=true&seed=${seed}`;
         }
-      } else {
-        const seed = Math.floor(Math.random() * 100000);
-        imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=${targetWidth}&height=${targetHeight}&model=flux&enhance=true&seed=${seed}`;
-        imgWrap.classList.remove('hidden');
-      }
+      });
+
+      await Promise.all(renderPromises);
 
       showMsg('');
       btn.disabled = false;
-      btn.innerText = '✨ ストーリー＆高画質イラストを生成';
+      btn.innerText = '✨ 4シーン連動ストーリー＆イラストを生成';
     }
 
     // 音声再生（ElevenLabs: 米国ナレーション音声 Adam）
