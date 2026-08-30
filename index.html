@@ -29,7 +29,7 @@
       <div class="space-y-3 mt-3 pt-2 border-t border-slate-200">
         <div>
           <label class="block font-semibold mb-1 text-slate-600">1. Gemini API Key (必須):</label>
-          <input id="apiKey" type="password" placeholder="AIzaSy... または AQ..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
+          <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
         </div>
         <div>
           <label class="block font-semibold mb-1 text-slate-600">2. Grok (xAI) API Key (画像生成・任意):</label>
@@ -203,11 +203,11 @@
     async function runGenerate() {
       const btn = document.getElementById('genBtn');
       
-      // キー文字列を完全にトリミング・サニタイズ
-      let apiKey = document.getElementById('apiKey').value.trim().replace(/^["']|["']$/g, '');
-      let xaiKey = document.getElementById('xaiKey').value.trim().replace(/^["']|["']$/g, '');
+      // 空白・改行・引用符を完全に除去
+      let apiKey = document.getElementById('apiKey').value.replace(/[\s\r\n"']/g, '');
+      let xaiKey = document.getElementById('xaiKey').value.replace(/[\s\r\n"']/g, '');
       let gFuncUrl = document.getElementById('gFuncUrl').value.trim();
-      let elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
+      let elevenKey = document.getElementById('elevenKey').value.replace(/[\s\r\n"']/g, '');
 
       if (!apiKey) {
         showMsg('【エラー】Gemini APIキーを入力してください（⚙️ 設定欄）。', true);
@@ -265,8 +265,9 @@
       let isSuccess = false;
       let lastErr = '';
 
-      // 現行のGemini安定モデル
+      // 現行モデル群（確実に稼働するものを順次フォールバック）
       const candidateModels = [
+        'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemini-1.5-flash',
         'gemini-3.6-flash'
@@ -274,17 +275,19 @@
 
       for (const model of candidateModels) {
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
           
-          // x-goog-api-key ヘッダーと URL パラメータの両方で認証
+          // ヘッダーは Content-Type のみ（x-goog-api-key との競合を回避）
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json"
+              }
             })
           });
 
@@ -313,7 +316,7 @@
       }
 
       if (!isSuccess) {
-        showMsg(`【文章生成エラー】\n${lastErr}\n\n※Google AI Studio (https://aistudio.google.com/) で発行したGemini APIキーであることを確認してください。`, true);
+        showMsg(`【文章生成エラー】\n${lastErr}\n\n※APIキー（AIzaSy...）を再確認してください。`, true);
         btn.disabled = false;
         btn.innerText = '✨ 4シーン連動ストーリー＆イラスト生成';
         return;
@@ -387,7 +390,7 @@
           }
         }
 
-        // フォールバック
+        // フォールバック (Flux)
         const seed = baseSeed + (index * 137);
         imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=768&height=576&model=flux&enhance=true&nologo=true&seed=${seed}`;
       };
