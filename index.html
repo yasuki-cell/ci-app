@@ -147,8 +147,7 @@
       btn.innerHTML = '<span class="animate-spin">⏳</span> ストーリー生成中...';
 
       const textPrompt = `あなたは第二言語習得論（CI: Comprehensible Input）の専門家です。
-学習者が日本語を介さず情景をイメージしながら直感的に理解できる文章を作成してください。
-主人公は必ず25歳の若い大人の男性（自分）の日常視点として描写してください。
+学習者が日本語を介さず情景をイメージしながら直感的に理解できる自然な日常ストーリーを作成してください。
 
 【条件】
 1. 言語: ${targetLang}
@@ -157,9 +156,10 @@
 4. ルール:
    - ${lengthPrompt}
    - 日本語の訳や解説は書かないこと
+   - 【絶対禁止】ストーリー本文中に年齢に関する記述（例: "I am 25 years old", "twenty-five years old" など）や自己紹介の定型文を一切入れないでください。テーマに沿った具体的な行動や周囲の情景描写のみを書いてください。
    - 以下の形式（JSON）のみを出力してください:
 {
-  "story": "ターゲット言語で書いたストーリー本文",
+  "story": "ターゲット言語で書いた自然なストーリー本文（年齢の記述は完全に排除）",
   "action": "Describe the 25-year-old adult handsome Japanese male protagonist specifically doing something in 1 clear English sentence",
   "location": "Detailed modern aesthetic Japanese setting in 4-6 English words",
   "mood": "Lighting and atmosphere (e.g., warm golden morning sunlight, pleasant cozy afternoon) in 3-5 English words"
@@ -218,7 +218,7 @@
         return;
       }
 
-      // 高品質アニメ画像生成 (FLUXエンジン指定)
+      // 高品質アニメ画像生成 (FLUXエンジン)
       btn.innerHTML = '<span class="animate-spin">🎨</span> 美麗イラスト作成中...';
 
       const imagePrompt = `masterpiece, best quality, ultra-detailed anime visual, modern Japanese anime movie aesthetic, Makoto Shinkai and Kyoto Animation inspired style, highly refined clean lineart.
@@ -227,7 +227,6 @@ Setting: Highly detailed, aesthetically pleasing modern Japanese background of $
 Negative Constraints: low quality, blurry, ugly, bad anatomy, deformed, child, kid, chibi, sweat drops, manga symbols, sparkles, text, watermark, speech bubbles.`;
 
       const seed = Math.floor(Math.random() * 100000);
-      // 高性能FLUXエンジンを指定して描画
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
       
       imgElem.src = imageUrl;
