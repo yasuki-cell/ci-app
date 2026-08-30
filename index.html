@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 作画監督 × Animagine XL 3.1 × 音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × Animagine XL 3.1 × 音声</p>
 
     <!-- APIキー設定エリア -->
     <div class="space-y-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -166,7 +166,6 @@
       btn.disabled = true;
       btn.innerHTML = '<span class="animate-spin">⏳</span> 作画監督がシーン設計中...';
 
-      // 作画監督視点で高品質タグ・構図・ライティングを生成させるシステムプロンプト
       const textPrompt = `あなたは「第二言語習得論の専門家」兼「一流の日本アニメ作画監督（Animation Director）」です。
 
 【指示1: ストーリー作成】
@@ -191,13 +190,19 @@
   "director_tags": "1boy, solo, 25yo adult handsome Japanese male, neat black short hair, (動作タグ), (背景タグ), (照明・アングルタグ)"
 }`;
 
-      const fallbackModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-2.0-flash-lite'];
+      // 現行のアクティブなFlashモデル群で自動リトライ
+      const activeModels = [
+        'gemini-3.6-flash',
+        'gemini-3.7-flash',
+        'gemini-3.5-flash-lite'
+      ];
+
       let isSuccess = false;
       let lastErrorMessage = '';
       let generatedStory = '';
       let directorTags = '';
 
-      for (const model of fallbackModels) {
+      for (const model of activeModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           const res = await fetch(endpoint, {
@@ -232,7 +237,7 @@
         return;
       }
 
-      // Animagine XL 3.1 公式推奨の最高品質ベースタグを作画監督タグと結合
+      // Animagine XL 3.1 レンダリング
       btn.innerHTML = '<span class="animate-spin">🎨</span> アニメ作画レンダリング中...';
 
       const fullPrompt = `masterpiece, newest, absurdres, highres, anime screencap, cinematic lighting, ${directorTags}`;
@@ -266,13 +271,11 @@
             throw new Error(`HF応答コード: ${hfRes.status}`);
           }
         } else {
-          // トークン未入力時のフォールバック
           const seed = Math.floor(Math.random() * 100000);
           imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
           imgContainer.classList.remove('hidden');
         }
       } catch (imgErr) {
-        // エラー時は自動でバックアップ描画へ切り替え
         const seed = Math.floor(Math.random() * 100000);
         imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&model=flux&nologo=true&seed=${seed}`;
         imgContainer.classList.remove('hidden');
