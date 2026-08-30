@@ -6,7 +6,6 @@
   <title>CI Language Assistant</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* スマホでのタップ反応を高速化 */
     button { touch-action: manipulation; }
   </style>
 </head>
@@ -216,69 +215,91 @@
 
       let story = '';
       let tags = topic;
+      let isSuccess = false;
+      let lastErr = '';
 
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
+      // 現行のアクティブなFlashモデル群
+      const candidateModels = [
+        'gemini-3.6-flash',
+        'gemini-3.7-flash',
+        'gemini-3.5-flash-lite'
+      ];
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || 'Gemini通信エラー');
-
-        let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        raw = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-
+      for (const model of candidateModels) {
         try {
-          const parsed = JSON.parse(raw);
-          story = parsed.story;
-          tags = parsed.director_tags || topic;
-        } catch {
-          story = raw;
-        }
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
 
-        document.getElementById('storyText').value = story.trim();
-        showMsg('イラストを描画中...');
+          const data = await res.json();
+          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            let raw = data.candidates[0].content.parts[0].text;
+            raw = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
 
-        // 画像生成
-        const fullPrompt = `masterpiece, newest, absurdres, highres, anime screencap, cinematic lighting, ${tags}`;
-        const negPrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, cropped, worst quality, low quality, chibi, manga symbols';
-        const imgElem = document.getElementById('storyImg');
-        const imgWrap = document.getElementById('imgWrap');
+            try {
+              const parsed = JSON.parse(raw);
+              story = parsed.story;
+              tags = parsed.director_tags || topic;
+            } catch {
+              story = raw;
+            }
 
-        if (hfToken) {
-          try {
-            const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                inputs: fullPrompt,
-                parameters: { negative_prompt: negPrompt, width: 768, height: 576 }
-              })
-            });
-            if (!hfRes.ok) throw new Error('HFエラー');
-            const blob = await hfRes.blob();
-            imgElem.src = URL.createObjectURL(blob);
-            imgWrap.classList.remove('hidden');
-          } catch {
-            const seed = Math.floor(Math.random() * 100000);
-            imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&seed=${seed}`;
-            imgWrap.classList.remove('hidden');
+            document.getElementById('storyText').value = story.trim();
+            isSuccess = true;
+            break;
+          } else if (data.error) {
+            lastErr = `[${model}] ${data.error.message}`;
           }
-        } else {
+        } catch (netErr) {
+          lastErr = `[${model}] ${netErr.message}`;
+        }
+      }
+
+      if (!isSuccess) {
+        showMsg(`【エラー】文章生成に失敗しました。\n${lastErr}`, true);
+        btn.disabled = false;
+        btn.innerText = '✨ ストーリー＆イラストを生成';
+        return;
+      }
+
+      showMsg('イラストを描画中...');
+
+      // 画像生成
+      const fullPrompt = `masterpiece, newest, absurdres, highres, anime screencap, cinematic lighting, ${tags}`;
+      const negPrompt = 'nsfw, lowres, bad anatomy, bad hands, text, error, cropped, worst quality, low quality, chibi, manga symbols';
+      const imgElem = document.getElementById('storyImg');
+      const imgWrap = document.getElementById('imgWrap');
+
+      if (hfToken) {
+        try {
+          const hfRes = await fetch('https://router.huggingface.co/hf-inference/models/cagliostrolab/animagine-xl-3.1', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              inputs: fullPrompt,
+              parameters: { negative_prompt: negPrompt, width: 768, height: 576 }
+            })
+          });
+          if (!hfRes.ok) throw new Error('HFエラー');
+          const blob = await hfRes.blob();
+          imgElem.src = URL.createObjectURL(blob);
+          imgWrap.classList.remove('hidden');
+        } catch {
           const seed = Math.floor(Math.random() * 100000);
           imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&seed=${seed}`;
           imgWrap.classList.remove('hidden');
         }
-
-        showMsg('');
-      } catch (err) {
-        showMsg('【エラー】' + err.message, true);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = '✨ ストーリー＆イラストを生成';
+      } else {
+        const seed = Math.floor(Math.random() * 100000);
+        imgElem.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=768&height=576&seed=${seed}`;
+        imgWrap.classList.remove('hidden');
       }
+
+      showMsg('');
+      btn.disabled = false;
+      btn.innerText = '✨ ストーリー＆イラストを生成';
     }
 
     // 音声再生
