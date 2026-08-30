@@ -9,7 +9,7 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（モデル自動対応版）</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini API × 音声読み上げ（最新モデル対応版）</p>
 
     <div class="mb-4">
       <div class="flex justify-between items-center mb-1">
@@ -17,7 +17,7 @@
         <span id="keySavedStatus" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済み</span>
       </div>
       <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-slate-50 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      <p class="text-[10px] text-slate-400 mt-1">※キーは端末内にのみ安全に一時保存されます</p>
+      <p class="text-[10px] text-slate-400 mt-1">※キーはスマホ内にのみ安全に保存されます</p>
     </div>
 
     <div class="grid grid-cols-2 gap-2 mb-4">
@@ -80,8 +80,9 @@
       errorBox.classList.add('hidden');
       errorBox.innerText = '';
 
-      const rawKey = document.getElementById('apiKey').value;
-      const apiKey = rawKey.trim();
+      let rawKey = document.getElementById('apiKey').value;
+      // 前後の空白やクォーテーションを徹底除去
+      const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
 
       if (!apiKey) {
         showError('APIキーが入力されていません。「AIzaSy...」で始まるキーを入力してください。');
@@ -111,72 +112,48 @@
    - 全体で60〜100語程度の短いパラグラフ
    - 日本語の訳や解説、挨拶は一切書かず、ターゲット言語のテキストのみを出力してください`;
 
-      // 優先的に試す候補モデルリスト
-      const candidateModels = [
-        'gemini-2.0-flash',
-        'gemini-2.5-flash',
-        'gemini-2.0-flash-lite',
-        'gemini-1.5-flash-latest',
-        'gemini-pro'
+      // 現在利用可能な最新モデルのURL一覧
+      const endpoints = [
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
       ];
 
       let isSuccess = false;
-      let lastErrorMessage = '';
+      let lastErrorDetail = '';
 
-      // 1. 候補モデルを順に呼び出し
-      for (const model of candidateModels) {
+      for (const endpoint of endpoints) {
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
           });
 
           const data = await res.json();
-          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+
+          if (res.ok && data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
             document.getElementById('resultText').value = data.candidates[0].content.parts[0].text.trim();
             isSuccess = true;
-            break;
+            break; // 生成成功で終了
           } else if (data.error) {
-            lastErrorMessage = data.error.message || '';
-          }
-        } catch (e) {
-          lastErrorMessage = e.message;
-        }
-      }
-
-      // 2. 候補がすべて外れた場合、利用可能なモデル一覧（ListModels）を自動取得して再試行
-      if (!isSuccess) {
-        try {
-          const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-          const listData = await listRes.json();
-          
-          if (listRes.ok && listData.models) {
-            const usableModel = listData.models.find(m => 
-              m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
-            );
-
-            if (usableModel) {
-              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${usableModel.name}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-              });
-              const data = await res.json();
-              if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                document.getElementById('resultText').value = data.candidates[0].content.parts[0].text.trim();
-                isSuccess = true;
-              }
+            lastErrorDetail = `[${data.error.status || res.status}] ${data.error.message}`;
+            // 権限エラーや無効なキーの場合は即ループを抜ける
+            if (data.error.status === 'PERMISSION_DENIED' || data.error.status === 'INVALID_ARGUMENT') {
+              break;
             }
           }
         } catch (e) {
-          // 自動取得も失敗した場合は下記エラーへ
+          lastErrorDetail = e.message;
         }
       }
 
       if (!isSuccess) {
-        showError(`【エラーが発生しました】\n${lastErrorMessage || '利用可能なモデルが見つかりませんでした。'}\n\n【確認事項】\n1. APIキーがGoogle AI Studioで有効になっているか確認してください。\n2. コピー時に文字が欠けていないか確認してください。`);
+        showError(`【接続エラー】\n${lastErrorDetail || 'モデルとの通信に失敗しました。'}\n\n【原因の可能性】\n・Google AI Studioで作成したAPIキーが正しくコピーされているかご確認ください（AIzaSy...から始まる文字列）。`);
       }
 
       btn.disabled = false;
