@@ -9,10 +9,10 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen p-4">
   <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
     <h1 class="text-xl font-bold text-slate-900 mb-1">🌱 CI 言語学習アプリ</h1>
-    <p class="text-xs text-slate-500 mb-4">Gemini 3.6 × Animagine XL 3.1 × 極上音声</p>
+    <p class="text-xs text-slate-500 mb-4">Gemini 最新モデル × Animagine XL × 音声</p>
 
     <!-- API・サーバー設定エリア -->
-    <details class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+    <details class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs" open>
       <summary class="font-semibold text-slate-700 cursor-pointer select-none">
         ⚙️ 設定（APIキー・中継サーバーURL）
       </summary>
@@ -20,7 +20,7 @@
         <!-- Gemini -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (文章生成・必須):</label>
+            <label class="text-[11px] font-semibold text-slate-700">1. Gemini API Key (必須):</label>
             <span id="geminiSaved" class="text-[10px] text-emerald-600 hidden font-bold">✓ 保存済</span>
           </div>
           <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -119,9 +119,9 @@
         <div>
           <label class="block text-[11px] font-bold text-indigo-900 mb-1">🎙 音声エンジン:</label>
           <select id="ttsEngine" class="w-full border border-indigo-200 rounded-lg p-1.5 text-xs bg-white text-slate-800 font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="gfunc" selected>Google Cloud TTS (サーバー連携)</option>
+            <option value="browser" selected>端末ネイティブ音声 (安定・無料)</option>
+            <option value="gfunc">Google Cloud TTS (サーバー連携)</option>
             <option value="elevenlabs">ElevenLabs (最高峰肉声)</option>
-            <option value="browser">端末ネイティブ音声</option>
           </select>
         </div>
         <div>
@@ -138,7 +138,7 @@
 
       <div class="flex gap-2">
         <button onclick="speakText()" id="playBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-1 shadow-sm">
-          <span>▶</span> ネイティブ音声再生
+          <span>▶</span> 音声再生
         </button>
         <button onclick="stopSpeech()" class="bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs transition shadow-sm">
           停止
@@ -188,7 +188,7 @@
       const elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
 
       if (!apiKey) {
-        showError('Gemini APIキーを入力してください。');
+        showError('Gemini APIキーが未入力です。「⚙️ 設定」を開いて「AIzaSy...」で始まるキーを入力してください。');
         return;
       }
 
@@ -256,13 +256,20 @@
   "director_tags": "出演者タグ, 動作タグ, 背景タグ, 演出照明タグ（カンマ区切り）"
 }`;
 
-      const activeModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'];
+      // 安定稼働する現行モデルリストを優先順にフォールバック
+      const candidateModels = [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash'
+      ];
+
       let isSuccess = false;
       let lastErrorMessage = '';
       let generatedStory = '';
       let directorTags = '';
 
-      for (const model of activeModels) {
+      for (const model of candidateModels) {
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
           const res = await fetch(endpoint, {
@@ -283,15 +290,15 @@
             isSuccess = true;
             break;
           } else if (data.error) {
-            lastErrorMessage = data.error.message;
+            lastErrorMessage = `[${model}] ${data.error.message}`;
           }
         } catch (e) {
-          lastErrorMessage = e.message;
+          lastErrorMessage = `[${model}] ${e.message}`;
         }
       }
 
       if (!isSuccess) {
-        showError(`【接続エラー】\n${lastErrorMessage}`);
+        showError(`【文章生成エラー】\n${lastErrorMessage}\n\n※APIキー（AIzaSy...）が正しいか、または利用枠を確認してください。`);
         btn.disabled = false;
         btn.innerHTML = '<span>✨</span> ストーリー＆情景イラストを生成';
         return;
@@ -328,7 +335,7 @@
             imgElem.src = URL.createObjectURL(blob);
             imgContainer.classList.remove('hidden');
           } else {
-            throw new Error(`HF応答コード: ${hfRes.status}`);
+            throw new Error(`HF応答: ${hfRes.status}`);
           }
         } else {
           const seed = Math.floor(Math.random() * 100000);
@@ -351,7 +358,7 @@
       errorBox.classList.remove('hidden');
     }
 
-    // 音声再生（Cloud Functions / ElevenLabs / Browser）
+    // 音声再生
     async function speakText() {
       const text = document.getElementById('resultText').value.trim();
       if (!text) return alert('先にテキストを生成するか、文章を入力してください');
@@ -367,21 +374,16 @@
       playBtn.innerHTML = '<span class="animate-spin">⏳</span> 音声準備中...';
 
       try {
-        // 1. Google Cloud Functions (公式TTS)
         if (engine === 'gfunc') {
           const gFuncUrl = document.getElementById('gFuncUrl').value.trim();
           if (!gFuncUrl) {
-            throw new Error('Google TTS サーバーURLが未入力です。「⚙️ 設定」に作成したCloud FunctionsのURLを貼り付けてください。');
+            throw new Error('Google TTS サーバーURLが未入力です。「⚙️ 設定」にURLを貼り付けてください。');
           }
 
           const response = await fetch(gFuncUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: text,
-              langCode: rawLang,
-              rate: rate
-            })
+            body: JSON.stringify({ text, langCode: rawLang, rate })
           });
 
           if (!response.ok) {
@@ -390,9 +392,8 @@
           }
 
           const blob = await response.blob();
-          await playBlobAudio(blob, 1.0); // 速度はサーバー側で調整済み
+          await playBlobAudio(blob, 1.0);
 
-        // 2. ElevenLabs
         } else if (engine === 'elevenlabs') {
           const elevenKey = document.getElementById('elevenKey').value.trim().replace(/^["']|["']$/g, '');
           if (!elevenKey) {
@@ -410,10 +411,7 @@
             body: JSON.stringify({
               text: text,
               model_id: "eleven_multilingual_v2",
-              voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.8
-              }
+              voice_settings: { stability: 0.5, similarity_boost: 0.8 }
             })
           });
 
@@ -425,7 +423,6 @@
           const blob = await response.blob();
           await playBlobAudio(blob, rate);
 
-        // 3. 端末ネイティブ音声
         } else {
           playBrowserVoice(text, rawLang, rate);
         }
@@ -435,7 +432,7 @@
         playBrowserVoice(text, rawLang, rate);
       } finally {
         playBtn.disabled = false;
-        playBtn.innerHTML = '<span>▶</span> ネイティブ音声再生';
+        playBtn.innerHTML = '<span>▶</span> 音声再生';
       }
     }
 
@@ -458,4 +455,8 @@
 
     function playBrowserVoice(text, langCode, rate) {
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesis
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = langCode;
+      u.rate = rate;
+
+      const v
