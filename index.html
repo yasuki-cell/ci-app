@@ -12,59 +12,19 @@
 <body class="bg-slate-100 text-slate-800 min-h-screen p-3 sm:p-5">
   <div class="max-w-md mx-auto bg-white rounded-xl shadow border border-slate-200 p-4 sm:p-5 space-y-4">
     
-    <!-- ヘッダー -->
     <div>
       <h1 class="text-lg font-bold text-slate-900">🌱 CI 言語学習アプリ</h1>
-      <p class="text-xs text-slate-500">4シーン連動イラスト × ストーリー × 米国肉声</p>
+      <p class="text-xs text-slate-500">ステップ別生成：ストーリー ➔ 4コマ絵巻 ➔ ネイティブ音声</p>
     </div>
 
-    <!-- エラー・通知表示 -->
     <div id="msgBox" class="hidden p-3 rounded-lg text-xs font-mono leading-relaxed break-words whitespace-pre-wrap"></div>
-
-    <!-- 設定エリア -->
-    <details class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs" open>
-      <summary class="font-bold text-slate-700 cursor-pointer select-none">
-        ⚙️ APIキー・サーバー設定
-      </summary>
-      <div class="space-y-3 mt-3 pt-2 border-t border-slate-200">
-        <!-- Gemini (伏せ字 & 表示切替) -->
-        <div>
-          <label class="block font-semibold mb-1 text-slate-600">1. Gemini API Key (必須):</label>
-          <div class="relative flex items-center">
-            <input id="apiKey" type="password" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded p-2 pr-10 text-xs bg-white font-mono">
-            <button type="button" onclick="toggleVisibility('apiKey')" class="absolute right-2 text-slate-400 hover:text-slate-600 p-1 text-xs">👁</button>
-          </div>
-        </div>
-        <!-- Grok -->
-        <div>
-          <label class="block font-semibold mb-1 text-slate-600">2. Grok (xAI) API Key (画像生成・任意):</label>
-          <div class="relative flex items-center">
-            <input id="xaiKey" type="password" placeholder="xai-..." class="w-full border border-slate-300 rounded p-2 pr-10 text-xs bg-white font-mono">
-            <button type="button" onclick="toggleVisibility('xaiKey')" class="absolute right-2 text-slate-400 hover:text-slate-600 p-1 text-xs">👁</button>
-          </div>
-        </div>
-        <!-- TTS Server -->
-        <div>
-          <label class="block font-semibold mb-1 text-slate-600">3. Google TTS サーバーURL (任意):</label>
-          <input id="gFuncUrl" type="url" placeholder="https://...cloudfunctions.net/tts" class="w-full border border-slate-300 rounded p-2 text-xs bg-white font-mono">
-        </div>
-        <!-- ElevenLabs -->
-        <div>
-          <label class="block font-semibold mb-1 text-slate-600">4. ElevenLabs API Key (米国肉声音声・任意):</label>
-          <div class="relative flex items-center">
-            <input id="elevenKey" type="password" placeholder="sk_..." class="w-full border border-slate-300 rounded p-2 pr-10 text-xs bg-white font-mono">
-            <button type="button" onclick="toggleVisibility('elevenKey')" class="absolute right-2 text-slate-400 hover:text-slate-600 p-1 text-xs">👁</button>
-          </div>
-        </div>
-      </div>
-    </details>
 
     <!-- 学習設定 -->
     <div class="grid grid-cols-3 gap-2 text-xs">
       <div>
         <label class="block font-semibold text-slate-600 mb-1">言語</label>
-        <select id="lang" class="w-full border border-slate-300 rounded p-1.5 bg-slate-50">
-          <option value="en-US">英語</option>
+        <select id="lang" onchange="updateVoiceOptions()" class="w-full border border-slate-300 rounded p-1.5 bg-slate-50">
+          <option value="en-US" selected>英語</option>
           <option value="fr-FR">フランス語</option>
           <option value="zh-CN">中国語</option>
           <option value="my-MM">ミャンマー語</option>
@@ -91,23 +51,35 @@
       </div>
     </div>
 
-    <!-- テーマ入力 & 生成ボタン -->
-    <div class="space-y-2">
+    <!-- テーマ入力 -->
+    <div class="space-y-1">
       <input id="topic" type="text" placeholder="テーマ（例: カフェで注文、駅のホーム、雨の日の出来事）" class="w-full border border-slate-300 rounded p-2 text-xs">
-      <button id="genBtn" onclick="runGenerate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-xs transition shadow">
-        ✨ 4シーン連動ストーリー＆イラスト生成
+    </div>
+
+    <!-- 操作ボタンエリア（ストーリー生成 / イラスト生成） -->
+    <div class="grid grid-cols-2 gap-2">
+      <button id="storyBtn" onclick="runGenerateStory()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded text-xs transition shadow">
+        📝 1. ストーリー作成
+      </button>
+      <button id="imgBtn" onclick="runGenerateImages()" disabled class="w-full bg-slate-300 text-slate-500 font-bold py-2.5 rounded text-xs cursor-not-allowed transition shadow">
+        🎨 2. イラストを4枚生成
       </button>
     </div>
 
-    <!-- 4シーン イラストギャラリー（2x2グリッド） -->
+    <!-- ストーリー表示 -->
+    <div class="space-y-1">
+      <span class="text-xs font-semibold text-slate-600">生成ストーリー全文:</span>
+      <textarea id="storyText" rows="4" class="w-full border border-slate-300 rounded p-2.5 text-xs leading-relaxed" placeholder="「1. ストーリー作成」を押すとここに文章が表示されます..."></textarea>
+    </div>
+
+    <!-- 4コマ画像表示 -->
     <div id="imgWrap" class="hidden space-y-2">
       <div class="flex justify-between items-center">
         <span class="text-xs font-semibold text-slate-700">ストーリー絵巻 (4 Scenes):</span>
-        <span id="imgEngineBadge" class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">4-Cut Storyboard</span>
+        <span id="engineBadge" class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">Ready</span>
       </div>
       
       <div class="grid grid-cols-2 gap-2">
-        <!-- Scene 1 -->
         <div class="space-y-1">
           <div class="w-full aspect-[4/3] bg-slate-900 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative flex items-center justify-center">
             <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-10">1. 発端</span>
@@ -115,8 +87,6 @@
           </div>
           <p id="caption1" class="text-[10px] text-slate-500 line-clamp-1 h-3.5"></p>
         </div>
-
-        <!-- Scene 2 -->
         <div class="space-y-1">
           <div class="w-full aspect-[4/3] bg-slate-900 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative flex items-center justify-center">
             <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-10">2. 展開</span>
@@ -124,8 +94,6 @@
           </div>
           <p id="caption2" class="text-[10px] text-slate-500 line-clamp-1 h-3.5"></p>
         </div>
-
-        <!-- Scene 3 -->
         <div class="space-y-1">
           <div class="w-full aspect-[4/3] bg-slate-900 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative flex items-center justify-center">
             <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-10">3. クライマックス</span>
@@ -133,8 +101,6 @@
           </div>
           <p id="caption3" class="text-[10px] text-slate-500 line-clamp-1 h-3.5"></p>
         </div>
-
-        <!-- Scene 4 -->
         <div class="space-y-1">
           <div class="w-full aspect-[4/3] bg-slate-900 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative flex items-center justify-center">
             <span class="absolute top-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-10">4. 結末</span>
@@ -145,21 +111,15 @@
       </div>
     </div>
 
-    <!-- ストーリー表示 -->
-    <div class="space-y-1">
-      <span class="text-xs font-semibold text-slate-600">生成ストーリー全文:</span>
-      <textarea id="storyText" rows="4" class="w-full border border-slate-300 rounded p-2.5 text-xs leading-relaxed" placeholder="ここにストーリーが表示されます..."></textarea>
-    </div>
-
     <!-- 音声パネル -->
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5">
       <div class="grid grid-cols-2 gap-2 text-xs">
         <div>
           <label class="block font-semibold text-slate-600 mb-1">音声エンジン</label>
-          <select id="ttsEngine" class="w-full border border-slate-300 rounded p-1.5 bg-white">
-            <option value="elevenlabs" selected>ElevenLabs (米国肉声)</option>
-            <option value="browser">端末標準 (無料・安定)</option>
-            <option value="gfunc">Google TTS (サーバー)</option>
+          <select id="ttsEngine" onchange="toggleVoiceSelect()" class="w-full border border-slate-300 rounded p-1.5 bg-white font-medium">
+            <option value="elevenlabs" selected>ElevenLabs (肉声)</option>
+            <option value="gcloud">Google Cloud TTS</option>
+            <option value="browser">端末標準音声</option>
           </select>
         </div>
         <div>
@@ -173,6 +133,13 @@
           </select>
         </div>
       </div>
+
+      <!-- ElevenLabs専用 言語連動ボイス選択 -->
+      <div id="voiceSelectWrap">
+        <label class="block text-xs font-semibold text-indigo-900 mb-1">🎙 ナレーター声質:</label>
+        <select id="voiceId" class="w-full border border-indigo-200 rounded p-1.5 text-xs bg-white text-indigo-950 font-semibold shadow-sm"></select>
+      </div>
+
       <div class="flex gap-2">
         <button id="playBtn" onclick="runSpeech()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded text-xs transition shadow">
           ▶ 音声再生
@@ -187,25 +154,66 @@
 
   <script>
     let currentAudio = null;
+    let currentScenes = []; // ストーリー生成時に保持する絵コンテデータ
 
-    // パスワード・伏せ字切り替え
-    function toggleVisibility(id) {
-      const input = document.getElementById(id);
-      input.type = (input.type === 'password') ? 'text' : 'password';
+    const voiceMap = {
+      "en-US": [
+        { id: "pNInz6obpgDQGcFmaJgB", name: "Adam (米国・男性標準ナレーション)" },
+        { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel (米国・女性クリア)" },
+        { id: "VR6AewLTigWG4xSOukaG", name: "Arnold (米国・男性深み)" }
+      ],
+      "fr-FR": [
+        { id: "JBFqnCBsd6RMkjVDRZzb", name: "Yves (フランス語・男性標準)" },
+        { id: "piTKgcLEGmPE4e6mEKli", name: "Nicole (フランス語・女性やわらか)" }
+      ],
+      "zh-CN": [
+        { id: "N2lVS1w4EtoT3dr4eOWO", name: "Callum (中国語・男性標準)" },
+        { id: "pFZP5JQG7iQjIQuC4Bku", name: "Lily (中国語・女性クリア)" }
+      ],
+      "my-MM": [
+        { id: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam (ミャンマー語・中立ナレーション)" },
+        { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella (ミャンマー語・女性ナチュラル)" }
+      ],
+      "es-ES": [
+        { id: "ErXwobaYiN019PkySvjV", name: "Antonio (スペイン語・男性クリア)" },
+        { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella (スペイン語・女性ナチュラル)" }
+      ],
+      "de-DE": [
+        { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel (ドイツ語・男性標準)" },
+        { id: "jBpfuIE2acCO8z3wKNLl", name: "Gigi (ドイツ語・女性)" }
+      ],
+      "ko-KR": [
+        { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam (韓国語・男性)" },
+        { id: "zrHiDhphv9ZnVXBqCLjz", name: "Mimi (韓国語・女性)" }
+      ]
+    };
+
+    function updateVoiceOptions() {
+      const lang = document.getElementById('lang').value;
+      const voiceSelect = document.getElementById('voiceId');
+      voiceSelect.innerHTML = '';
+
+      const voices = voiceMap[lang] || voiceMap['en-US'];
+      voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.innerText = v.name;
+        voiceSelect.appendChild(opt);
+      });
     }
 
-    // 遅延ヘルパー
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    function toggleVoiceSelect() {
+      const engine = document.getElementById('ttsEngine').value;
+      const wrap = document.getElementById('voiceSelectWrap');
+      if (engine === 'elevenlabs') {
+        wrap.classList.remove('hidden');
+      } else {
+        wrap.classList.add('hidden');
+      }
+    }
 
     window.addEventListener('load', () => {
-      const load = (id, key) => {
-        const val = localStorage.getItem(key);
-        if (val) document.getElementById(id).value = val;
-      };
-      load('apiKey', 'ci_gemini_key');
-      load('xaiKey', 'ci_xai_key');
-      load('gFuncUrl', 'ci_gfunc_url');
-      load('elevenKey', 'ci_eleven_key');
+      updateVoiceOptions();
     });
 
     function showMsg(text, isError = false) {
@@ -221,208 +229,105 @@
       box.classList.remove('hidden');
     }
 
-    // ストーリー＆4シーン連動イラスト生成
-    async function runGenerate() {
-      const btn = document.getElementById('genBtn');
-      
-      let rawKey = document.getElementById('apiKey').value || '';
-      let apiKey = rawKey.trim().replace(/[\s\r\n"'`]/g, '');
-      let xaiKey = (document.getElementById('xaiKey').value || '').trim().replace(/[\s\r\n"'`]/g, '');
-      let gFuncUrl = (document.getElementById('gFuncUrl').value || '').trim();
-      let elevenKey = (document.getElementById('elevenKey').value || '').trim().replace(/[\s\r\n"'`]/g, '');
-
-      if (!apiKey) {
-        showMsg('【エラー】Gemini APIキーを入力してください（⚙️ 設定欄）。', true);
-        return;
-      }
-
-      localStorage.setItem('ci_gemini_key', apiKey);
-      if (xaiKey) localStorage.setItem('ci_xai_key', xaiKey);
-      if (gFuncUrl) localStorage.setItem('ci_gfunc_url', gFuncUrl);
-      if (elevenKey) localStorage.setItem('ci_eleven_key', elevenKey);
-
+    // 1. ストーリー作成処理
+    async function runGenerateStory() {
+      const storyBtn = document.getElementById('storyBtn');
+      const imgBtn = document.getElementById('imgBtn');
       const langSelect = document.getElementById('lang');
       const targetLang = langSelect.options[langSelect.selectedIndex].text;
       const level = document.getElementById('level').value;
       const lengthChoice = document.getElementById('length').value;
       const topic = document.getElementById('topic').value.trim() || '日常の出来事';
 
-      let lengthDesc = '6〜8文の自然なパラグラフ';
-      if (lengthChoice === 'short') lengthDesc = '4文構成の短いパラグラフ';
-      if (lengthChoice === 'long') lengthDesc = '10〜12文構成のしっかりとしたパラグラフ';
+      storyBtn.disabled = true;
+      storyBtn.innerText = '⏳ 作成中...';
+      
+      // 画像ボタンを一時無効化
+      imgBtn.disabled = true;
+      imgBtn.className = 'w-full bg-slate-300 text-slate-500 font-bold py-2.5 rounded text-xs cursor-not-allowed transition shadow';
 
-      btn.disabled = true;
-      btn.innerText = '⏳ 4シーン設計中...';
-      showMsg('Gemini でストーリー＆4つの情景プロンプトを作成中...');
+      showMsg('Gemini でストーリー＆4シーン絵コンテを作成中...');
 
-      const prompt = `あなたは「第二言語習得論の専門家」兼「一流アニメーション映画の作画監督」です。
+      try {
+        const res = await fetch('/api/generate-story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetLang, level, lengthChoice, topic })
+        });
 
-【指示1: ストーリー作成】
-- 言語: ${targetLang}
-- レベル: ${level}
-- テーマ: ${topic}
-- 長さ: ${lengthDesc}
-- 【禁止】本文中に年齢（例: "I am 25..."）や定型自己紹介を書かないこと。自然な日常ストーリーのみ。
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'ストーリー生成に失敗しました');
 
-【指示2: 4つのシーン作画プロンプト作成】
-ストーリーの最初から最後までを起承転結の4つの連続した情景（Scene 1〜4）に分割し、美麗な日本アニメ調イラストを生成するための詳細な英語プロンプトと、短い日本語説明を作成してください。
+        document.getElementById('storyText').value = data.story;
+        currentScenes = data.scenes || [];
 
-必ず以下のJSON形式のみで出力してください:
-{
-  "story": "ストーリー本文全文",
-  "scenes": [
-    { "caption": "Scene 1の日本語説明", "prompt": "Scene 1用の詳細な英語プロンプト" },
-    { "caption": "Scene 2の日本語説明", "prompt": "Scene 2用の詳細な英語プロンプト" },
-    { "caption": "Scene 3の日本語説明", "prompt": "Scene 3用の詳細な英語プロンプト" },
-    { "caption": "Scene 4の日本語説明", "prompt": "Scene 4用の詳細な英語プロンプト" }
-  ]
-}`;
+        // イラスト生成ボタンを活性化
+        imgBtn.disabled = false;
+        imgBtn.className = 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded text-xs transition shadow';
 
-      let story = '';
-      let scenes = [];
-      let isSuccess = false;
-      let lastErr = '';
-
-      const candidateModels = [
-        'gemini-3.6-flash',
-        'gemini-3.7-flash',
-        'gemini-3.5-flash-lite'
-      ];
-
-      for (const model of candidateModels) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-          
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
-
-          const data = await res.json();
-          if (res.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            let raw = data.candidates[0].content.parts[0].text;
-            raw = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-
-            try {
-              const parsed = JSON.parse(raw);
-              story = parsed.story;
-              scenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
-            } catch {
-              story = raw;
-            }
-
-            document.getElementById('storyText').value = story.trim();
-            isSuccess = true;
-            break;
-          } else if (data.error) {
-            lastErr = `[${model}] ${data.error.message || JSON.stringify(data.error)}`;
-          }
-        } catch (netErr) {
-          lastErr = `[${model}] ${netErr.message}`;
-        }
+        showMsg('✨ ストーリーが完成しました！「2. イラストを4枚生成」を押して描画できます。');
+      } catch (err) {
+        showMsg('【エラー】' + err.message, true);
+      } finally {
+        storyBtn.disabled = false;
+        storyBtn.innerText = '📝 1. ストーリー再作成';
       }
-
-      if (!isSuccess) {
-        showMsg(`【文章生成エラー】\n${lastErr}\n\n※aistudio.google.com で作成した有効なAPIキー（AIzaSy...）をご確認ください。`, true);
-        btn.disabled = false;
-        btn.innerText = '✨ 4シーン連動ストーリー＆イラスト生成';
-        return;
-      }
-
-      // 4シーン補完
-      const fallbackCaptions = ["1. 発端の情景", "2. 出来事の展開", "3. クライマックス", "4. 結末の情景"];
-      const fullScenes = [];
-      for (let i = 0; i < 4; i++) {
-        if (scenes[i] && (scenes[i].prompt || scenes[i].tags)) {
-          fullScenes.push({
-            caption: scenes[i].caption || fallbackCaptions[i],
-            prompt: scenes[i].prompt || scenes[i].tags
-          });
-        } else {
-          fullScenes.push({
-            caption: fallbackCaptions[i],
-            prompt: `anime style, ${topic}, scene ${i + 1}`
-          });
-        }
-      }
-
-      document.getElementById('imgWrap').classList.remove('hidden');
-
-      const badge = document.getElementById('imgEngineBadge');
-      badge.innerText = xaiKey ? 'Grok (xAI) Engine' : 'Flux Fast Engine';
-
-      const baseSeed = Math.floor(Math.random() * 800000);
-
-      // 1枚ずつ確実に画像を読み込むシーケンシャル処理
-      for (let i = 0; i < fullScenes.length; i++) {
-        showMsg(`イラスト Scene ${i + 1}/4 を描画中...`);
-        const scene = fullScenes[i];
-        const imgElem = document.getElementById(`sceneImg${i + 1}`);
-        const capElem = document.getElementById(`caption${i + 1}`);
-        capElem.innerText = scene.caption;
-
-        const finalPrompt = `Japanese anime screencap, masterpiece, clean lines, ${scene.prompt}`;
-
-        if (xaiKey) {
-          try {
-            const grokRes = await fetch('https://api.x.ai/v1/images/generations', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${xaiKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                model: 'grok-2-image',
-                prompt: finalPrompt,
-                n: 1,
-                response_format: 'url'
-              })
-            });
-
-            if (grokRes.ok) {
-              const grokData = await grokRes.json();
-              if (grokData.data?.[0]?.url) {
-                imgElem.src = grokData.data[0].url;
-                await sleep(200);
-                continue;
-              }
-            }
-          } catch (e) {
-            console.warn('Grok fallback:', e);
-          }
-        }
-
-        // 軽量な 512x384 解像度で確実に描画（サーバー負荷を最小化）
-        const seed = baseSeed + (i * 37);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=512&height=384&model=flux&nologo=true&seed=${seed}`;
-        
-        // 画像を即座にセット
-        imgElem.src = imageUrl;
-        
-        // サーバー連続アクセス制限を避けるため 300ミリ秒待機
-        await sleep(300);
-      }
-
-      showMsg('');
-      btn.disabled = false;
-      btn.innerText = '✨ 4シーン連動ストーリー＆イラスト生成';
     }
 
-    // 音声再生（ElevenLabs: 米国ナレーション音声 Adam）
-    async function runSpeech() {
-      const text = document.getElementById('storyText').value.trim();
-      if (!text) {
-        showMsg('先にストーリーを生成してください。', true);
+    // 2. イラスト画像作成処理
+    async function runGenerateImages() {
+      if (!currentScenes || currentScenes.length === 0) {
+        showMsg('先に「1. ストーリー作成」を実行してください。', true);
         return;
       }
+
+      const imgBtn = document.getElementById('imgBtn');
+      const topic = document.getElementById('topic').value.trim() || '日常の出来事';
+
+      imgBtn.disabled = true;
+      imgBtn.innerText = '⏳ 4枚描画中...';
+      showMsg('4枚のシーンイラストを並列描画中...');
+      document.getElementById('imgWrap').classList.remove('hidden');
+
+      const fallbackCaptions = ["1. 発端", "2. 展開", "3. クライマックス", "4. 結末"];
+
+      try {
+        const loadTasks = [0, 1, 2, 3].map(async (i) => {
+          const sc = currentScenes[i] || { caption: fallbackCaptions[i], prompt: `${topic}, scene ${i + 1}` };
+          document.getElementById(`caption${i + 1}`).innerText = sc.caption;
+
+          const imgRes = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: sc.prompt, index: i })
+          });
+
+          const imgData = await imgRes.json();
+          if (imgData.url) {
+            document.getElementById(`sceneImg${i + 1}`).src = imgData.url;
+            document.getElementById('engineBadge').innerText = imgData.engine;
+          }
+        });
+
+        await Promise.all(loadTasks);
+        showMsg('');
+      } catch (err) {
+        showMsg('【画像生成エラー】' + err.message, true);
+      } finally {
+        imgBtn.disabled = false;
+        imgBtn.innerText = '🎨 2. イラスト再生成';
+      }
+    }
+
+    // 3. 音声再生処理
+    async function runSpeech() {
+      const text = document.getElementById('storyText').value.trim();
+      if (!text) return showMsg('先にストーリーを作成してください。', true);
 
       stopAudio();
       const engine = document.getElementById('ttsEngine').value;
       const langCode = document.getElementById('lang').value;
+      const voiceId = document.getElementById('voiceId').value;
       const rate = parseFloat(document.getElementById('speechRate').value);
       const playBtn = document.getElementById('playBtn');
 
@@ -430,40 +335,7 @@
       playBtn.innerText = '⏳ 準備中...';
 
       try {
-        if (engine === 'gfunc') {
-          const gFuncUrl = document.getElementById('gFuncUrl').value.trim();
-          if (!gFuncUrl) throw new Error('Google TTS サーバーURLが未設定です。');
-
-          const res = await fetch(gFuncUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, langCode, rate })
-          });
-          if (!res.ok) throw new Error('サーバーエラー: ' + res.status);
-          const blob = await res.blob();
-          await playBlob(blob, 1.0);
-
-        } else if (engine === 'elevenlabs') {
-          const elevenKey = document.getElementById('elevenKey').value.trim();
-          if (!elevenKey) throw new Error('ElevenLabs APIキーが未設定です。');
-
-          const americanVoiceId = "pNInz6obpgDQGcFmaJgB"; // Adam (米国標準)
-
-          const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${americanVoiceId}`, {
-            method: 'POST',
-            headers: { 'xi-api-key': elevenKey, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text,
-              model_id: 'eleven_multilingual_v2',
-              voice_settings: { stability: 0.5, similarity_boost: 0.8 }
-            })
-          });
-          if (!res.ok) throw new Error('ElevenLabs通信エラー: ' + res.status);
-          const blob = await res.blob();
-          await playBlob(blob, rate);
-
-        } else {
-          // 端末標準音声
+        if (engine === 'browser') {
           const u = new SpeechSynthesisUtterance(text);
           u.lang = langCode;
           u.rate = rate;
@@ -471,7 +343,29 @@
           const match = voices.find(v => v.lang === langCode || v.lang.startsWith(langCode.split('-')[0]));
           if (match) u.voice = match;
           window.speechSynthesis.speak(u);
+          playBtn.disabled = false;
+          playBtn.innerText = '▶ 音声再生';
+          return;
         }
+
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, engine, voiceId, langCode, rate })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `音声エラー (${res.status})`);
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        currentAudio = new Audio(url);
+        currentAudio.playbackRate = (engine === 'elevenlabs') ? rate : 1.0;
+        currentAudio.onended = () => URL.revokeObjectURL(url);
+        await currentAudio.play();
+
       } catch (err) {
         showMsg('【音声エラー】' + err.message + '\n※端末標準音声で再生します。', true);
         const u = new SpeechSynthesisUtterance(text);
@@ -482,17 +376,6 @@
         playBtn.disabled = false;
         playBtn.innerText = '▶ 音声再生';
       }
-    }
-
-    function playBlob(blob, playbackRate = 1.0) {
-      return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(blob);
-        currentAudio = new Audio(url);
-        currentAudio.playbackRate = playbackRate;
-        currentAudio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-        currentAudio.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-        currentAudio.play().catch(reject);
-      });
     }
 
     function stopAudio() {
